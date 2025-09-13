@@ -1,0 +1,50 @@
+:root{
+  --bg:#f6f7fb; --card:#fff; --border:#e7e9ee;
+  --shadow:0 10px 30px rgba(0,0,0,.06);
+  --radius:18px;
+}
+
+html,body{ background:var(--bg); -webkit-font-smoothing:antialiased; }
+
+/* “Tarjetas” Apple-like para casi todo lo que ya tiene .border + .rounded */
+.app-shell .border{
+  border-color:var(--border)!important;
+  background:var(--card);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+
+/* Tablas */
+.app-shell table{ background:#fff; border-radius:14px; overflow:hidden; }
+.app-shell thead{ background:linear-gradient(#fafafa,#f0f1f5); }
+.app-shell th,.app-shell td{ border-bottom:1px solid var(--border)!important; }
+
+/* Inputs */
+.app-shell input,.app-shell select,.app-shell textarea{
+  background:#fff; border:1px solid var(--border);
+  border-radius:12px; padding:.6rem .7rem; transition:box-shadow .2s;
+}
+.app-shell input:focus,.app-shell select:focus,.app-shell textarea:focus{
+  outline:none; box-shadow:0 0 0 4px rgba(0,122,255,.15);
+}
+
+/* Botones */
+.app-shell button{ border-radius:12px; transition:transform .12s ease, box-shadow .2s; }
+.app-shell button:hover{ transform:translateY(-1px); box-shadow:0 8px 20px rgba(0,0,0,.08); }
+.app-shell .bg-black{ background:#111!important; }
+.app-shell .bg-emerald-600{ border:none; box-shadow:0 10px 20px rgba(16,185,129,.25); }
+
+/* Skeleton loader (shimmer) */
+.skeleton{ position:relative; overflow:hidden; background:#eef1f5; border-radius:8px; }
+.skeleton::after{
+  content:""; position:absolute; inset:0; transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);
+  animation:shimmer 1.2s infinite;
+}
+@keyframes shimmer{ 100%{ transform:translateX(100%);} }
+
+/* Splash */
+.splash{ animation:fadeOut .6s ease 1.2s forwards; }
+.splash-logo{ animation:pop .6s ease-out both; }
+@keyframes fadeOut{ to{ opacity:0; visibility:hidden; } }
+@keyframes pop{ 0%{opacity:0; transform:scale(.9);} 100%{opacity:1; transform:scale(1);} }

@@ -1,0 +1,373 @@
+// @ts-nocheck
+/* Utilidades compartidas, catálogos y cálculos */
+
+export const TZ = "Europe/Madrid";
+
+export const fmtDate = (d: string | Date) =>
+  new Date(d).toLocaleDateString("es-ES", { timeZone: TZ });
+export const fmtMoney = (n: number) =>
+  Number(n || 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+
+export const initialSequences = () => ({ "A-2025": { last: 0 }, "B-2025": { last: 0 } });
+
+export function dedupeById<T extends { id?: string }>(arr: T[]) {
+  const map = new Map<string, T>();
+  (arr || []).forEach((x) => x?.id && map.set(x.id!, x));
+  return Array.from(map.values());
+}
+
+export const Seller = {
+  name: "Tu Empresa S.L.",
+  nif: "B00000000",
+  address: "C/ Ejemplo 123",
+  city: "Madrid",
+  postalCode: "28000",
+  country: "España",
+  email: "info@tuempresa.com",
+  phone: "+34 600 000 000",
+};
+
+export function updateSeller(patch: Partial<typeof Seller>) {
+  if (!patch) return;
+  Object.assign(Seller, patch);
+}
+
+export const VAT_RATES = [
+  { id: "iva21", label: "IVA 21%", rate: 0.21 },
+  { id: "iva10", label: "IVA 10%", rate: 0.1 },
+  { id: "iva4", label: "IVA 4%", rate: 0.04 },
+  { id: "exento", label: "Exento (0%)", rate: 0 },
+];
+
+export const SERIES = [
+  { code: "A", name: "Serie A 2025" },
+  { code: "B", name: "Serie B 2025" },
+];
+
+export const PAYMENT_METHODS = [
+  { code: "CONTADO", name: "Contado", schedule: [{ percent: 100, days: 0 }] },
+  {
+    code: "30-60-90",
+    name: "30-60-90",
+    schedule: [
+      { percent: 33, days: 30 },
+      { percent: 33, days: 60 },
+      { percent: 34, days: 90 },
+    ],
+  },
+];
+
+export const PRODUCTS = [
+  { id: "P001", ref: "ABANICOL", name: "Abanico color", price: 8, vat: "iva21" },
+  { id: "P100", ref: "SERV001", name: "Servicio técnico", price: 50, vat: "iva21" },
+];
+
+export function resolveVat(vatId: string) {
+  return VAT_RATES.find((v) => v.id === vatId) || VAT_RATES[0];
+}
+export function recargoEquivalenciaRate(vatId: string) {
+  if (vatId === "iva21") return 0.052;
+  if (vatId === "iva10") return 0.014;
+  if (vatId === "iva4") return 0.005;
+  return 0;
+}
+
+export function computeLine(line, { applyRE = false } = {}) {
+  const base = (line.qty || 0) * (line.price || 0);
+  const dto = base - base * (1 - (line.dtopct || 0) / 100);
+  const baseAfterDto = base - dto;
+  const vatRate = resolveVat(line.vat).rate;
+  const vatAmt = baseAfterDto * vatRate;
+  const irpfAmt = baseAfterDto * ((line.irpfpct || 0) / 100) * -1;
+  const reRate = applyRE ? recargoEquivalenciaRate(line.vat) : 0;
+  const reAmt = baseAfterDto * reRate;
+  return { base, dto, baseAfterDto, vatAmt, irpfAmt, reAmt, total: baseAfterDto + vatAmt + reAmt + irpfAmt };
+}
+
+export function computeTotals(doc, customer, { isInvoice = false } = {}) {
+  const applyRE = isInvoice && !!customer?.re;
+  const sum = (a, v) => a + v;
+  const computed = (doc.lines || []).map((l) => computeLine(l, { applyRE }));
+  const bruto = computed.map((x) => x.base).reduce(sum, 0);
+  const dto = computed.map((x) => x.dto).reduce(sum, 0);
+  const neto = computed.map((x) => x.baseAfterDto).reduce(sum, 0);
+  const totaliva = computed.map((x) => x.vatAmt).reduce(sum, 0);
+  const totalre = computed.map((x) => x.reAmt).reduce(sum, 0);
+  const totalirpf = computed.map((x) => x.irpfAmt).reduce(sum, 0);
+  const total = neto + totaliva + totalre + totalirpf;
+  return { bruto, dto, neto, totaliva, totalre, totalirpf, total };
+}
+
+export function nextNumber(seqs, seriesCode: string, date: string) {
+  const year = new Date(date).getFullYear();
+  const key = `${seriesCode}-${year}`;
+  const entry = seqs[key] || { last: 0 };
+  const next = entry.last + 1;
+  return { code: key, next, seqs: { ...seqs, [key]: { last: next } } };
+}
+
+// @ts-nocheck
+export function openPrintWindow(html: string) {
+  // Asegura que el HTML tenga auto-print si se abre en otra pestaña
+  const ensureAutoPrint = (raw: string) => {
+    // Si ya tiene onload que imprima, respetamos
+    if (/\bonload=.*print\(\)/i.test(raw)) return raw;
+    // Insertamos onload en <body> (o lo creamos)
+    if (/<body[^>]*>/i.test(raw)) {
+      return raw.replace(
+        /<body([^>]*)>/i,
+        `<body$1 onload="try{window.focus();window.print();setTimeout(()=>window.close(),200);}catch(e){}">`
+      );
+    }
+    // Si no hay <html>/<body>, envolvemos
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Imprimir</title></head>
+<body onload="try{window.focus();window.print();setTimeout(()=>window.close(),200);}catch(e){}">
+${raw}
+</body></html>`;
+  };
+
+  const htmlDoc = ensureAutoPrint(html);
+
+  /* ====== Estrategia 1: ventana nueva ====== 
+  const w = window.open("", "_blank", "noopener,noreferrer");
+  if (w && "document" in w) {
+    try {
+      w.document.open();
+      w.document.write(htmlDoc);
+      w.document.close();
+      // Por si el onload del <body> no dispara, tenemos plan B:
+      w.addEventListener?.("load", () => {
+        try { w.focus(); w.print(); setTimeout(() => w.close(), 200); } catch {}
+      });
+      return;
+    } catch {
+      // seguimos con iframe
+    }
+  }*/
+
+  /* ====== Estrategia 2: iframe oculto ====== */
+  try {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.setAttribute("sandbox", "allow-modals allow-same-origin allow-scripts");
+    // srcdoc imprime al cargar (lleva onload en <body>)
+    iframe.srcdoc = htmlDoc;
+    iframe.onload = () => {
+      try {
+        const win = iframe.contentWindow;
+        win?.focus();
+        win?.print?.();
+        setTimeout(() => {
+          iframe.parentNode?.removeChild(iframe);
+        }, 300);
+      } catch {
+        iframe.parentNode?.removeChild(iframe);
+      }
+    };
+    document.body.appendChild(iframe);
+    return;
+  } catch {
+    // seguimos con blob
+  }
+
+  /* ====== Estrategia 3: abrir en esta pestaña con Blob ====== */
+  try {
+    const blob = new Blob([htmlDoc], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    // Abrir en la misma pestaña evita bloqueos de popup
+    window.location.href = url;
+  } catch {
+    alert("No se pudo abrir la ventana de impresión. Revisa el bloqueador de pop-ups.");
+  }
+}
+
+// @ts-nocheck
+
+/** Carga html2pdf.js desde CDN si aún no está cargado */
+export async function ensureHtml2Pdf() {
+  if (window.html2pdf) return window.html2pdf;
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("No se pudo cargar html2pdf.js"));
+    document.head.appendChild(s);
+  });
+  return window.html2pdf;
+}
+
+// @ts-nocheck
+/* ====================== EMAIL (EmailJS) ====================== */
+
+// Carga EmailJS (UMD) desde CDN si no está cargado
+export async function ensureEmailJS() {
+  if (window.emailjs && window.emailjs.send) return window.emailjs;
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("No se pudo cargar EmailJS"));
+    document.head.appendChild(s);
+  });
+  if (!window.emailjs || !window.emailjs.send) throw new Error("EmailJS no disponible");
+  return window.emailjs;
+}
+
+// Lee la config desde localStorage o la pide al usuario una vez
+export async function getEmailJSConfigInteractive() {
+  const KEY = "emailjs_cfg_v1";
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {}
+  if (!cfg?.serviceId || !cfg?.templateId || !cfg?.publicKey) {
+    const serviceId  = prompt("EmailJS service ID (p.ej. service_xxx):") || "";
+    const templateId = prompt("EmailJS template ID (p.ej. template_xxx):") || "";
+    const publicKey  = prompt("EmailJS public key (p.ej. xxx_yourKey):") || "";
+    if (!serviceId || !templateId || !publicKey) throw new Error("Config de EmailJS incompleta");
+    cfg = { serviceId, templateId, publicKey };
+    localStorage.setItem(KEY, JSON.stringify(cfg));
+    alert("✅ Config de EmailJS guardada. Puedes cambiarla borrando localStorage['emailjs_cfg_v1'].");
+  }
+  return cfg;
+}
+
+// Convierte tu HTML a un BLOB de PDF (sin descargar)
+export async function htmlToPDFBlob(html: string): Promise<Blob> {
+  const html2pdf = await ensureHtml2Pdf();
+
+  // Iframe oculto para medir estilos igual que imprimir
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0"; iframe.style.bottom = "0";
+  iframe.style.width = "0"; iframe.style.height = "0"; iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  doc.open(); doc.write(html); doc.close();
+
+  // Asegurar mismo contexto que impresión
+  const extra = doc.createElement("style");
+  extra.textContent = `
+    @page{ size:A4; margin:0 }
+    html,body{ margin:0; padding:0 }
+    body{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  `;
+  doc.head.appendChild(extra);
+
+  try { if (doc.fonts?.ready) await doc.fonts.ready; } catch {}
+  const imgs = Array.from(doc.images) as HTMLImageElement[];
+  await Promise.all(imgs.map(img => img.complete ? Promise.resolve()
+    : new Promise(r => { img.onload = img.onerror = () => r(null); })));
+
+  const root = (doc.querySelector(".page") as HTMLElement) || doc.body;
+
+  const worker = html2pdf()
+    .set({
+      filename: "documento.pdf",
+      margin: 0,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    })
+    .from(root)
+    .toPdf();
+
+  const pdf = await worker.get("pdf");
+  const blob = pdf.output("blob");
+  iframe.parentNode?.removeChild(iframe);
+  return blob as Blob;
+}
+
+export async function blobToBase64Data(blob: Blob): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result)); // data:application/pdf;base64,xxxx
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+}
+
+// utils.ts
+import html2pdf from 'html2pdf.js';
+
+// Detecta ruta del endpoint (Vercel: /api/resend; Netlify: /.netlify/functions/resend)
+const EMAIL_ENDPOINT =
+  (import.meta as any).env?.VITE_EMAIL_ENDPOINT  // opcional override desde .env
+  || (window.location.host.includes('netlify.app') ? '/.netlify/functions/resend' : '/api/resend');
+
+/** Convierte un HTML string en PDF (base64) en el navegador, sin descargar */
+async function htmlToPdfBase64(html: string): Promise<string> {
+  // 1) Montar el HTML en un iframe oculto para que html2pdf renderice con estilos básicos
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '800px';
+  iframe.style.height = '1000px';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // 2) Generar PDF con html2pdf (usa html2canvas + jsPDF)
+  const element = doc.body;
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: 'documento.pdf',
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  // html2pdf worker
+  const worker = (html2pdf() as any).from(element).set(opt).toPdf();
+  const pdf = await worker.get('pdf');            // jsPDF instance
+  const blob: Blob = pdf.output('blob');          // PDF como Blob
+
+  // 3) Blob → base64
+  const arr = new Uint8Array(await blob.arrayBuffer());
+  let s = '';
+  for (let i = 0; i < arr.length; i++) s += String.fromCharCode(arr[i]);
+  const base64 = btoa(s);
+
+  // 4) Limpieza del iframe
+  document.body.removeChild(iframe);
+  return base64;
+}
+
+/** Enviar email con PDF adjunto usando el endpoint serverless (Resend) */
+export async function sendEmailWithPDF(opts: {
+  to: string;
+  subject: string;
+  message?: string;
+  html: string;       // HTML del documento (Factura/Albarán/CP)
+  filename: string;   // Ej. "Factura_A-1.pdf"
+}) {
+  const { to, subject, message, html, filename } = opts;
+
+  // Generar PDF en cliente (idéntico al imprimible, porque usamos tu mismo HTML)
+  const pdfBase64 = await htmlToPdfBase64(html);
+
+  // Mandar al servidor que reenvía vía Resend
+  const resp = await fetch(EMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to, subject, message, filename, pdfBase64 })
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(()=> '');
+    throw new Error(text || `Fallo enviando email (${resp.status})`);
+  }
+  return await resp.json().catch(()=> ({}));
+}
