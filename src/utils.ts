@@ -206,38 +206,6 @@ export async function ensureHtml2Pdf() {
 // @ts-nocheck
 /* ====================== EMAIL (EmailJS) ====================== */
 
-// Carga EmailJS (UMD) desde CDN si no está cargado
-export async function ensureEmailJS() {
-  if (window.emailjs && window.emailjs.send) return window.emailjs;
-  await new Promise<void>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("No se pudo cargar EmailJS"));
-    document.head.appendChild(s);
-  });
-  if (!window.emailjs || !window.emailjs.send) throw new Error("EmailJS no disponible");
-  return window.emailjs;
-}
-
-// Lee la config desde localStorage o la pide al usuario una vez
-export async function getEmailJSConfigInteractive() {
-  const KEY = "emailjs_cfg_v1";
-  let cfg = null;
-  try { cfg = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {}
-  if (!cfg?.serviceId || !cfg?.templateId || !cfg?.publicKey) {
-    const serviceId  = prompt("EmailJS service ID (p.ej. service_xxx):") || "";
-    const templateId = prompt("EmailJS template ID (p.ej. template_xxx):") || "";
-    const publicKey  = prompt("EmailJS public key (p.ej. xxx_yourKey):") || "";
-    if (!serviceId || !templateId || !publicKey) throw new Error("Config de EmailJS incompleta");
-    cfg = { serviceId, templateId, publicKey };
-    localStorage.setItem(KEY, JSON.stringify(cfg));
-    alert("✅ Config de EmailJS guardada. Puedes cambiarla borrando localStorage['emailjs_cfg_v1'].");
-  }
-  return cfg;
-}
-
 // Convierte tu HTML a un BLOB de PDF (sin descargar)
 export async function htmlToPDFBlob(html: string): Promise<Blob> {
   const html2pdf = await ensureHtml2Pdf();
@@ -345,29 +313,76 @@ async function htmlToPdfBase64(html: string): Promise<string> {
   return base64;
 }
 
-/** Enviar email con PDF adjunto usando el endpoint serverless (Resend) */
-export async function sendEmailWithPDF(opts: {
-  to: string;
-  subject: string;
-  message?: string;
-  html: string;       // HTML del documento (Factura/Albarán/CP)
-  filename: string;   // Ej. "Factura_A-1.pdf"
-}) {
-  const { to, subject, message, html, filename } = opts;
+// @ts-nocheck
 
-  // Generar PDF en cliente (idéntico al imprimible, porque usamos tu mismo HTML)
+/** Convierte un HTML (el mismo de imprimir) a PDF base64, sin descargar */
+async function htmlToPdfBase64(html: string): Promise<string> {
+  // Usa tu ensureHtml2Pdf si ya lo tienes; si no, carga html2pdf.js como hacías antes
+  const html2pdf = await ensureHtml2Pdf?.() ?? (await import("html2pdf.js")).default;
+
+  // Iframe oculto con el MISMO HTML (para respetar estilos)
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-10000px";
+  iframe.style.top = "0";
+  iframe.style.width = "794px";   // ≈ A4 a 96dpi
+  iframe.style.height = "1123px";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument!;
+  doc.open(); doc.write(html); doc.close();
+
+  // Esperar fuentes/imágenes (muy importante para que sea igual al impreso)
+  try { if (doc.fonts?.ready) await doc.fonts.ready; } catch {}
+  const imgs = Array.from(doc.images) as HTMLImageElement[];
+  await Promise.all(imgs.map(img => img.complete ? Promise.resolve()
+    : new Promise(r => { img.onload = img.onerror = () => r(null); })));
+
+  const root = (doc.querySelector(".page") as HTMLElement) || doc.body;
+
+  const worker = html2pdf()
+    .set({
+      margin: 0,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, windowWidth: 794, width: 794 },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    })
+    .from(root)
+    .toPdf();
+
+  const pdf = await worker.get("pdf");
+  const blob = pdf.output("blob");
+
+  // Blob → base64
+  const ab = await blob.arrayBuffer();
+  const uint = new Uint8Array(ab);
+  let bin = "";
+  for (let i = 0; i < uint.length; i++) bin += String.fromCharCode(uint[i]);
+  const base64 = btoa(bin);
+
+  iframe.parentNode?.removeChild(iframe);
+  return base64;
+}
+
+/** Envía email con PDF adjunto a través del endpoint /api/resend (Vercel) */
+export async function sendEmailWithPDF({
+  to, subject, message, html, filename,
+}: { to: string; subject: string; message?: string; html: string; filename: string; }) {
+  // 1) Generar PDF base64 desde el navegador
   const pdfBase64 = await htmlToPdfBase64(html);
 
-  // Mandar al servidor que reenvía vía Resend
-  const resp = await fetch(EMAIL_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, subject, message, filename, pdfBase64 })
+  // 2) Mandar al serverless /api/resend (no expone tu API key)
+  const resp = await fetch("/api/resend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to, subject, message, filename, pdfBase64 }),
   });
 
   if (!resp.ok) {
-    const text = await resp.text().catch(()=> '');
-    throw new Error(text || `Fallo enviando email (${resp.status})`);
+    const t = await resp.text().catch(()=> "");
+    throw new Error(t || `Fallo enviando email (${resp.status})`);
   }
   return await resp.json().catch(()=> ({}));
 }
