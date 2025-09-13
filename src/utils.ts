@@ -271,48 +271,6 @@ const EMAIL_ENDPOINT =
   (import.meta as any).env?.VITE_EMAIL_ENDPOINT  // opcional override desde .env
   || (window.location.host.includes('netlify.app') ? '/.netlify/functions/resend' : '/api/resend');
 
-/** Convierte un HTML string en PDF (base64) en el navegador, sin descargar */
-async function htmlToPdfBase64(html: string): Promise<string> {
-  // 1) Montar el HTML en un iframe oculto para que html2pdf renderice con estilos básicos
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.left = '-10000px';
-  iframe.style.top = '0';
-  iframe.style.width = '800px';
-  iframe.style.height = '1000px';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument!;
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  // 2) Generar PDF con html2pdf (usa html2canvas + jsPDF)
-  const element = doc.body;
-  const opt = {
-    margin: [10, 10, 10, 10],
-    filename: 'documento.pdf',
-    image: { type: 'jpeg', quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, logging: false },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  // html2pdf worker
-  const worker = (html2pdf() as any).from(element).set(opt).toPdf();
-  const pdf = await worker.get('pdf');            // jsPDF instance
-  const blob: Blob = pdf.output('blob');          // PDF como Blob
-
-  // 3) Blob → base64
-  const arr = new Uint8Array(await blob.arrayBuffer());
-  let s = '';
-  for (let i = 0; i < arr.length; i++) s += String.fromCharCode(arr[i]);
-  const base64 = btoa(s);
-
-  // 4) Limpieza del iframe
-  document.body.removeChild(iframe);
-  return base64;
-}
-
 // @ts-nocheck
 
 /** Convierte un HTML (el mismo de imprimir) a PDF base64, sin descargar */
