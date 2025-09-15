@@ -104,7 +104,8 @@ export default function ClientesPage({
         <span className="text-sm text-gray-500">{filtered.length} clientes</span>
       </div>
 
-      <table className="w-full text-sm border">
+      <div className="overflow-x-auto rounded-lg border mt-2">
+      <table className="min-w-[720px] w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
             <th className="p-2 text-left">Cliente</th>
@@ -409,6 +410,7 @@ export default function ClientesPage({
           )}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }
@@ -416,7 +418,7 @@ export default function ClientesPage({
 /* ========== tabla de líneas mini (dentro del cliente) ========== */
 function LinesMini({ doc, customer, isInvoice = false }) {
   return (
-    <table className="w-full text-[11px] border">
+    <table className="w-full text-[11px] border min-w-[640px]">
       <thead className="bg-white">
         <tr>
           <th className="px-1 py-0.5 text-left">Nombre</th>
@@ -458,9 +460,16 @@ function SkeletonRows({ cols, rows=6 }){
     <>
       {Array.from({length:rows}).map((_,i)=>(
         <tr key={i} className="border-t">
-          {Array.from({length:cols}).map((_,j)=>(
-            <td key={j} className="p-2"><div className="skeleton h-4 w-full" /></td>
-          ))}
+          <td className="p-2" colSpan={cols}>
+            <div className="relative flex w-full animate-pulse gap-3 p-2">
+              <div className="h-8 w-8 rounded-full bg-slate-200"></div>
+              <div className="flex-1">
+                <div className="mb-1 h-4 w-3/5 rounded-lg bg-slate-200"></div>
+                <div className="h-4 w-[90%] rounded-lg bg-slate-200"></div>
+              </div>
+              <div className="absolute bottom-2 right-2 h-3 w-3 rounded-full bg-slate-200"></div>
+            </div>
+          </td>
         </tr>
       ))}
     </>

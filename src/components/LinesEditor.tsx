@@ -102,7 +102,8 @@ export default function LinesEditor({
         </button>
       </div>
 
-      <table className="w-full text-sm border">
+      <div className="overflow-x-auto rounded-lg border">
+      <table className="min-w-[960px] w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
             <th className="p-2 text-left">Producto</th>
@@ -245,11 +246,12 @@ export default function LinesEditor({
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Mini-modal: Crear producto rápido */}
       {quickOpen && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-4 w-[480px]">
+          <div className="bg-white rounded-xl shadow-xl p-4 w-[480px] max-w-[90vw]">
             <h4 className="font-semibold mb-2">Guardar como producto</h4>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="col-span-2">

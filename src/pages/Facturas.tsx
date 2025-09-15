@@ -89,13 +89,13 @@ export default function FacturasPage({
           Nueva factura
         </button>
         <input
-          className="border rounded p-2"
+          className="border rounded p-2 w-full sm:w-auto border rounded p-2"
           placeholder="Buscar por cliente/NIF"
           value={filters.q}
           onChange={(e) => setFilters({ ...filters, q: e.target.value })}
         />
         <select
-          className="border rounded p-2"
+          className="border rounded p-2 w-full sm:w-auto border rounded p-2"
           value={filters.serie}
           onChange={(e) => setFilters({ ...filters, serie: e.target.value })}
         >
@@ -108,13 +108,13 @@ export default function FacturasPage({
         </select>
         <input
           type="date"
-          className="border rounded p-2"
+          className="border rounded p-2 w-full sm:w-auto border rounded p-2"
           value={filters.from}
           onChange={(e) => setFilters({ ...filters, from: e.target.value })}
         />
         <input
           type="date"
-          className="border rounded p-2"
+          className="border rounded p-2 w-full sm:w-auto border rounded p-2"
           value={filters.to}
           onChange={(e) => setFilters({ ...filters, to: e.target.value })}
         />
@@ -126,7 +126,8 @@ export default function FacturasPage({
         </button>
       </div>
 
-      <table className="w-full text-sm border mt-2">
+      <div className="overflow-x-auto rounded-lg border mt-2">
+      <table className="min-w-[720px] w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
             <th className="p-2">Serie</th>
@@ -294,6 +295,7 @@ export default function FacturasPage({
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Crear (cabecera + líneas) */}
       {createOpen && draft && (
@@ -456,9 +458,16 @@ function SkeletonRows({ cols, rows=6 }){
     <>
       {Array.from({length:rows}).map((_,i)=>(
         <tr key={i} className="border-t">
-          {Array.from({length:cols}).map((_,j)=>(
-            <td key={j} className="p-2"><div className="skeleton h-4 w-full" /></td>
-          ))}
+          <td className="p-2" colSpan={cols}>
+            <div className="relative flex w-full animate-pulse gap-3 p-2">
+              <div className="h-8 w-8 rounded-full bg-slate-200"></div>
+              <div className="flex-1">
+                <div className="mb-1 h-4 w-3/5 rounded-lg bg-slate-200"></div>
+                <div className="h-4 w-[90%] rounded-lg bg-slate-200"></div>
+              </div>
+              <div className="absolute bottom-2 right-2 h-3 w-3 rounded-full bg-slate-200"></div>
+            </div>
+          </td>
         </tr>
       ))}
     </>

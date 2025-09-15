@@ -272,7 +272,7 @@ export default function App() {
 
 
   return (
-    <div className="app-shell mx-auto max-w-7xl p-6 space-y-5">
+    <div className="app-shell mx-auto max-w-7xl p-4 sm:p-5 md:p-6 space-y-5">
       <div className="flex items-center justify-between rounded-xl border p-3">
         <div className="text-sm">{cloud.kind === "drive" ? <>Conectado a <b>Google Drive</b></> : <>Almacenamiento local</>}</div>
         {cloud.kind !== "drive" && (
@@ -300,7 +300,6 @@ export default function App() {
       )}
 
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">FS Clone · Facturas, Albaranes & Carta de Porte</h1>
         <nav className="flex gap-2 p-1 border rounded-full">
           <button className={`px-3 py-1 rounded-lg ${tab==="albaranes"?"bg-black text-white":"bg-gray-100"}`} onClick={() => setTab("albaranes")}>Albaranes</button>
           <button className={`px-3 py-1 rounded-lg ${tab==="facturas"?"bg-black text-white":"bg-gray-100"}`} onClick={() => setTab("facturas")}>Facturas</button>

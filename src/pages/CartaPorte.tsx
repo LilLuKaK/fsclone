@@ -97,7 +97,8 @@ export default function CartaPortePage({
         />
       </div>
 
-      <table className="w-full text-sm border mt-2">
+      <div className="overflow-x-auto rounded-lg border mt-2">
+      <table className="min-w-[720px] w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
             <th className="p-2">Fecha</th>
@@ -216,6 +217,7 @@ export default function CartaPortePage({
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Crear */}
       {createOpen && draft && (
@@ -525,3 +527,25 @@ export function renderCPHTML(cp) {
     <p class="muted">Fecha: ${fmtDate(cp.date)} — Nº: ${cp.numero || "-"}</p>
   </body></html>`;
 }
+
+function SkeletonRows({ cols, rows=6 }){
+  return (
+    <>
+      {Array.from({length:rows}).map((_,i)=>(
+        <tr key={i} className="border-t">
+          <td className="p-2" colSpan={cols}>
+            <div className="relative flex w-full animate-pulse gap-3 p-2">
+              <div className="h-8 w-8 rounded-full bg-slate-200"></div>
+              <div className="flex-1">
+                <div className="mb-1 h-4 w-3/5 rounded-lg bg-slate-200"></div>
+                <div className="h-4 w-[90%] rounded-lg bg-slate-200"></div>
+              </div>
+              <div className="absolute bottom-2 right-2 h-3 w-3 rounded-full bg-slate-200"></div>
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
