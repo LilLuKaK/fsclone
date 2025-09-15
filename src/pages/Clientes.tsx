@@ -1,6 +1,8 @@
 // @ts-nocheck
 import React, { useMemo, useState } from "react";
 import { fmtDate, fmtMoney, computeTotals } from "../utils";
+import Dialog from "./../components/Dialog";
+import ClientForm from "./../components/ClientForm";
 
 type ClientesProps = {
   customers: any[];
@@ -12,6 +14,7 @@ type ClientesProps = {
   printAlbaran: (a: any) => void;
   printFactura: (f: any) => void;
   printCP: (cp: any) => void;
+  setCustomers: (updater: any) => void;
 
   // para fabricar HTML igual que en el resto
   renderDocHTML: (doc: any, type: "albaran" | "factura" | "cp") => string;
@@ -19,19 +22,39 @@ type ClientesProps = {
 };
 
 export default function ClientesPage({
-  customers,
-  albaranes,
-  invoices,
-  cartaportes,
-  printAlbaran,
-  printFactura,
-  printCP,
-  renderDocHTML,
-  loading
+  customers, albaranes, invoices, cartaportes,
+  printAlbaran, printFactura, printCP,
+  renderDocHTML, loading,
+  setCustomers
 }: ClientesProps & {loading:boolean}) {
   const [q, setQ] = useState("");
   const [expanded, setExpanded] = useState<{ [id: string]: boolean }>({});
-  const [rowOpen, setRowOpen] = useState<{ [id: string]: string | null }>({}); // docId abierto por cliente
+  const [rowOpen, setRowOpen] = useState<{ [id: string]: string | null }>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [draft, setDraft] = useState(null);
+
+  function newClientDraft() {
+    return {
+      id: `C${Date.now()}`,            // ID único, estilo de tus JSON
+      name: "", nif: "", email: "", phone: "",
+      address: "", postalCode: "", city: "",
+      country: "España",
+      re: false, irpfpct: 0,
+      deliveryAddress: "",
+      notes: ""
+    };
+  }
+  function openCreate() {
+    setDraft(newClientDraft());
+    setCreateOpen(true);
+  }
+  function saveCreate() {
+    if (!draft?.name) return alert("El nombre es obligatorio");
+    if (!draft?.nif)  return alert("El NIF es obligatorio");
+    const ready = { ...draft, id: draft.id || `C${Date.now()}` };
+    setCustomers((prev: any[]) => [ready, ...prev]);   // persistirá por efecto en App
+    setCreateOpen(false);
+  }
 
   const filtered = useMemo(() => {
     if (!q) return customers;
@@ -102,6 +125,13 @@ export default function ClientesPage({
           onChange={(e) => setQ(e.target.value)}
         />
         <span className="text-sm text-gray-500">{filtered.length} clientes</span>
+        <div className="flex-1" />
+        <button
+          className="px-3 py-2 bg-emerald-600 text-white rounded-lg"
+          onClick={openCreate}
+        >
+          Nuevo cliente
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-lg border mt-2">
@@ -411,6 +441,19 @@ export default function ClientesPage({
         </tbody>
       </table>
       </div>
+      {createOpen && draft && (
+        <Dialog title="Nuevo cliente" onClose={() => setCreateOpen(false)}>
+          <ClientForm draft={draft} setDraft={setDraft} />
+          <div className="flex justify-end gap-2 mt-3">
+            <button className="px-3 py-2 rounded border" onClick={() => setCreateOpen(false)}>
+              Cancelar
+            </button>
+            <button className="px-3 py-2 rounded bg-black text-white" onClick={saveCreate}>
+              Guardar
+            </button>
+          </div>
+        </Dialog>
+      )}
     </section>
   );
 }

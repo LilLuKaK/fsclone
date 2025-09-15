@@ -366,6 +366,7 @@ export default function App() {
           printFactura={printFactura}
           printCP={printCP}
           loading={loading}
+          setCustomers={setCustomers}
         />
       )}
 
