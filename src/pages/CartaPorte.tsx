@@ -84,8 +84,8 @@ export default function CartaPortePage({
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <button
-          className="px-3 py-2 bg-emerald-600 text-white rounded-lg"
-          onClick={openCreate}
+          className="px-3 py-2 rounded-lg text-white"
+          onClick={() => { setDraft(newDraft()); setCreateOpen(true); }}
         >
           Nueva Carta de Porte
         </button>
@@ -221,13 +221,17 @@ export default function CartaPortePage({
 
       {/* Crear */}
       {createOpen && draft && (
-        <Dialog title="Nueva Carta de Porte (Nacional)" onClose={() => setCreateOpen(false)}>
+        <Dialog
+          open={true}
+          onClose={() => setCreateOpen(false)}
+          title="Nueva Carta de Porte (Nacional)"
+        >
           <CPForm draft={draft} setDraft={setDraft} />
           <div className="flex justify-end gap-2 mt-3">
             <button className="px-3 py-2 rounded border" onClick={() => setCreateOpen(false)}>
               Cancelar
             </button>
-            <button className="px-3 py-2 rounded bg-black text-white" onClick={saveCreate}>
+            <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreate}>
               Guardar
             </button>
           </div>
@@ -242,7 +246,7 @@ export default function CartaPortePage({
             <button className="px-3 py-2 rounded border" onClick={() => setEditOpen(false)}>
               Cancelar
             </button>
-            <button className="px-3 py-2 rounded bg-black text-white" onClick={saveEdit}>
+            <button className="px-3 py-2 rounded text-white" onClick={saveEdit}>
               Guardar cambios
             </button>
           </div>

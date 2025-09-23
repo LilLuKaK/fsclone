@@ -22,6 +22,30 @@ export default function FacturasPage({
   const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState(null);
   const [expanded, setExpanded] = useState({}); // filas desplegadas
+  const [createFacOpen, setCreateFacOpen] = useState(false);
+  const [facDraft, setFacDraft] = useState<any>(null);
+
+  function newFacturaDraft(){
+    const today = new Date().toISOString().slice(0,10);
+    return {
+      id: `FAC-${Math.random().toString(36).slice(2,8)}`,
+      series: "A", number: undefined,
+      date: today, codpago: "CONTADO",
+      isExempt: false, exemptNote: "",
+      state: "emitida",
+      customerId: customers[0]?.id || "",
+      lines: [], notes: ""
+    };
+  }
+  function openCreateFac(){ setFacDraft(newFacturaDraft()); setCreateFacOpen(true); }
+  function saveCreateFac(){
+    if (!facDraft?.customerId) return alert("Selecciona un cliente");
+    const { seqs: s2, number } = nextNumber(seqs, "factura", facDraft.series || "A");
+    setSeqs(s2);
+    const ready = { ...facDraft, number };
+    setInvoices((prev:any[]) => [ready, ...prev]);
+    setCreateFacOpen(false);
+  }
 
   const customerById = (id) => customers.find((c) => c.id === id);
   const matches = (f) => {
@@ -81,10 +105,8 @@ export default function FacturasPage({
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <button
-          className="px-3 py-2 bg-emerald-600 text-white rounded-lg"
-          onClick={openCreate}
-          disabled={!customers.length}
-          title={!customers.length ? "Crea un cliente primero" : ""}
+          className="px-3 py-2 rounded-lg text-white"
+          onClick={() => { setFacDraft(newFacturaDraft()); setCreateFacOpen(true); }}
         >
           Nueva factura
         </button>
@@ -297,34 +319,34 @@ export default function FacturasPage({
       </table>
       </div>
 
-      {/* Crear (cabecera + líneas) */}
-      {createOpen && draft && (
-        <Dialog title="Nueva factura" onClose={() => setCreateOpen(false)}>
-          <FacHeader
-            draft={draft}
-            setDraft={setDraft}
-            customers={customers}
-          />
-          <LinesEditor
-            doc={draft}
-            setDoc={setDraft}
-            products={products}
-            onSaveProduct={onSaveProduct}
-          />
-          <div className="flex justify-end gap-2 mt-3">
-            <button
-              className="px-3 py-2 rounded border"
-              onClick={() => setCreateOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-black text-white"
-              onClick={saveCreate}
-            >
-              Emitir
-            </button>
-          </div>
+      {/* Crear (cabecera + líneas) – usa el estado nuevo */}
+      {createFacOpen && facDraft && (
+        <Dialog
+          open={!!createFacOpen}
+          onClose={() => setCreateFacOpen(false)}
+          title="Nueva factura"
+        >
+          {!facDraft ? (
+            <div className="text-sm text-gray-500">Preparando formulario…</div>
+          ) : (
+            <>
+              <FacHeader draft={facDraft} setDraft={setFacDraft} customers={customers} />
+              <LinesEditor
+                doc={facDraft}
+                setDoc={setFacDraft}
+                products={products}
+                onSaveProduct={onSaveProduct}
+              />
+              <div className="flex justify-end gap-2 mt-3">
+                <button className="px-3 py-2 rounded border" onClick={() => setCreateFacOpen(false)}>
+                  Cancelar
+                </button>
+                <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateFac}>
+                  Guardar
+                </button>
+              </div>
+            </>
+          )}
         </Dialog>
       )}
 
@@ -350,7 +372,7 @@ export default function FacturasPage({
               Cancelar
             </button>
             <button
-              className="px-3 py-2 rounded bg-black text-white"
+              className="px-3 py-2 rounded bg-blue text-white"
               onClick={saveEdit}
             >
               Guardar cambios

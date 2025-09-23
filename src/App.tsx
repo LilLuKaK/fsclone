@@ -29,6 +29,10 @@ export default function App() {
   const [cartaportes, setCartaPortes] = useState([]);
   const [seqs, setSeqs] = useState(initialSequences());
 
+  const [forceDriveModal, setForceDriveModal] = useState(false);
+  const [connectingDrive, setConnectingDrive] = useState(false);
+
+
   const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dups, setDups] = useState({ c: 0, a: 0, f: 0, cp: 0 });
@@ -132,6 +136,13 @@ export default function App() {
   }, [products, hydrated, cloud]);
   useEffect(()=>{ const t=setTimeout(()=>setShowSplash(false),1400); return ()=>clearTimeout(t); },[]);
 
+  useEffect(() => {
+    if (localStorage.getItem("driveConnected") !== "1") {
+      setForceDriveModal(true);         // obligar a conectar
+    } else {
+      // auto-conectar (tú ya lo tenías)
+    }
+  }, []);
 
   const customerById = (id) => customers.find((c) => c.id === id);
   function renderDocHTML(doc, type) {
@@ -273,6 +284,37 @@ export default function App() {
 
   return (
     <div className="app-shell mx-auto max-w-7xl p-4 sm:p-5 md:p-6 space-y-5">
+      {/* Modal obligatorio de conexión a Drive */}
+      {forceDriveModal && cloud.kind !== "drive" && (
+        <div className="fixed inset-0 z-[120] bg-blue/40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h2 className="text-xl font-semibold mb-2">Conectar con Google Drive</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Necesitamos conectar con tu Drive para guardar y sincronizar clientes, albaranes y facturas.
+            </p>
+            <button
+              disabled={connectingDrive}
+              onClick={async () => {
+                try {
+                  setConnectingDrive(true);
+                  await drive.connect();
+                  setCloud(drive);
+                  localStorage.setItem("driveConnected","1");
+                  setForceDriveModal(false); // cerrar modal al conectar
+                } catch (e) {
+                  alert(e?.message || "No se pudo conectar con Drive");
+                } finally {
+                  setConnectingDrive(false);
+                }
+              }}
+              className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-60"
+            >
+              {connectingDrive ? "Conectando..." : "Conectar con Google Drive"}
+            </button>
+            {/* Sin botón de cerrar: conexión obligatoria */}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between rounded-xl border p-3">
         <div className="text-sm">{cloud.kind === "drive" ? <>Conectado a <b>Google Drive</b></> : <>Almacenamiento local</>}</div>
         {cloud.kind !== "drive" && (
@@ -301,11 +343,11 @@ export default function App() {
 
       <header className="flex items-center justify-between">
         <nav className="flex gap-2 p-1 border rounded-full">
-          <button className={`px-3 py-1 rounded-lg ${tab==="albaranes"?"bg-black text-white":"bg-gray-100"}`} onClick={() => setTab("albaranes")}>Albaranes</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="facturas"?"bg-black text-white":"bg-gray-100"}`} onClick={() => setTab("facturas")}>Facturas</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="cp"?"bg-black text-white":"bg-gray-100"}`} onClick={() => setTab("cp")}>Carta de Porte</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="clientes"?"bg-black text-white":"bg-gray-100"}`} onClick={() => setTab("clientes")}>Clientes</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="contabilidad"?"bg-black text-white":"bg-gray-100"}`} onClick={()=>setTab("contabilidad")}> Contabilidad </button>
+          <button className={`px-3 py-1 rounded-lg ${tab==="albaranes"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("albaranes")}>Albaranes</button>
+          <button className={`px-3 py-1 rounded-lg ${tab==="facturas"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("facturas")}>Facturas</button>
+          <button className={`px-3 py-1 rounded-lg ${tab==="cp"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("cp")}>Carta de Porte</button>
+          <button className={`px-3 py-1 rounded-lg ${tab==="clientes"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("clientes")}>Clientes</button>
+          <button className={`px-3 py-1 rounded-lg ${tab==="contabilidad"?"bg-blue text-white":"bg-gray-100"}`} onClick={()=>setTab("contabilidad")}> Contabilidad </button>
           <button className="px-3 py-1 border rounded" onClick={() => setSellerOpen(true)}>
             ⚙️ Empresa
           </button>
@@ -378,7 +420,7 @@ export default function App() {
       )}
       
       {sellerOpen && (
-        <Dialog open={sellerOpen} onClose={() => setSellerOpen(false)} title="Datos fiscales de la empresa">
+        <Dialog open={sellerOpen} onClose={()=>setSellerOpen(false)} title="Datos fiscales de la empresa">
           <div className="grid grid-cols-2 gap-3">
             <label className="col-span-2">
               <div className="text-sm text-gray-600 mb-1">Nombre / Razón social</div>
@@ -439,15 +481,17 @@ export default function App() {
         </Dialog>
       )}
 
-      {loading && (
-        <div className="fixed inset-0 bg-white/70 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-transparent border-black"></div>
-        </div>
-      )}
-
-      {loading && (
-        <div className="fixed inset-0 bg-white/70 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-transparent border-black"></div>
+      {(loading || connectingDrive) && (
+        <div className="screen-blocker">
+          <div className="flex flex-col items-center gap-3">
+            <div className="dot-spinner">
+              <div className="dot-spinner__dot"></div><div className="dot-spinner__dot"></div>
+              <div className="dot-spinner__dot"></div><div className="dot-spinner__dot"></div>
+              <div className="dot-spinner__dot"></div><div className="dot-spinner__dot"></div>
+              <div className="dot-spinner__dot"></div><div className="dot-spinner__dot"></div>
+            </div>
+            <div className="text-sm text-gray-700">Cargando datos…</div>
+          </div>
         </div>
       )}
     </div>

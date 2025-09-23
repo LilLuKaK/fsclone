@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState } from "react";
 import { SERIES, fmtDate, fmtMoney, computeTotals } from "../utils";
-import Dialog from "../components/Dialog";
+import Dialog from "./../components/Dialog";
 import LinesEditor from "../components/LinesEditor";
 
 export default function AlbaranesPage({
@@ -22,6 +22,34 @@ export default function AlbaranesPage({
   const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState(null);
   const [expanded, setExpanded] = useState({}); // filas desplegadas
+  const [createAlbOpen, setCreateAlbOpen] = useState(false);
+  const [albDraft, setAlbDraft] = useState<any>(null);
+
+  function newAlbaranDraft(){
+    const today = new Date().toISOString().slice(0,10);
+    return {
+      id: `ALB-${Math.random().toString(36).slice(2,8)}`,
+      series: "A", number: undefined,
+      date: today, deliveryDate: today,
+      customerId: customers[0]?.id || "",
+      deliveryAddress: customers[0]?.address || "",
+      state: "nuevo", warehouseId: "MAD",
+      lines: [], notes: ""
+    };
+  }
+  function openCreateAlb(){
+    setAlbDraft(newAlbaranDraft());
+    setCreateAlbOpen(true);
+  }
+  async function saveCreateAlb(){
+    if (!albDraft?.customerId) return alert("Selecciona un cliente");
+    // numeración
+    const { seqs: s2, number } = nextNumber(seqs, "albaran", albDraft.series || "A");
+    setSeqs(s2);
+    const ready = { ...albDraft, number };
+    setAlbaranes((prev:any[]) => [ready, ...prev]);
+    setCreateAlbOpen(false);
+  }
 
   const customerById = (id) => customers.find((c) => c.id === id);
   const matches = (a) => {
@@ -36,37 +64,6 @@ export default function AlbaranesPage({
   const rows = albaranes.filter(matches);
 
   /* ===== Crear / Editar ===== */
-  function newDraft() {
-    const today = new Date().toISOString().slice(0, 10);
-    const c0 = customers[0] || {};
-    return {
-      id: `ALB-${Math.random().toString(36).slice(2, 8)}`,
-      series: "A",
-      number: null,
-      date: today,         // emisión
-      deliveryDate: today, // entrega
-      customerId: c0.id || "",
-      deliveryAddress: c0.deliveryAddress || c0.address || "",
-      state: "nuevo",
-      warehouseId: "MAD",
-      lines: [],
-      notes: "",
-    };
-  }
-
-  function openCreate() {
-    setDraft(newDraft());
-    setCreateOpen(true);
-  }
-
-  function saveCreate() {
-    // Numerar solo en creación
-    const { next, seqs: nseqs } = nextNumber(seqs, draft.series, draft.date);
-    const saved = { ...draft, number: next };
-    setSeqs(nseqs);
-    setAlbaranes((prev) => [saved, ...prev]);
-    setCreateOpen(false);
-  }
 
   function openEdit(doc) {
     setDraft({ ...doc }); // clonar para editar
@@ -83,10 +80,8 @@ export default function AlbaranesPage({
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <button
-          className="px-3 py-2 bg-emerald-600 text-white rounded-lg"
-          onClick={openCreate}
-          disabled={!customers.length}
-          title={!customers.length ? "Crea un cliente primero" : ""}
+          className="px-3 py-2 rounded-lg text-white"
+          onClick={() => { setAlbDraft(newAlbaranDraft()); setCreateAlbOpen(true); }}
         >
           Nuevo albarán
         </button>
@@ -280,30 +275,34 @@ export default function AlbaranesPage({
       </table>
       </div>
 
-      {/* Crear (cabecera + líneas) */}
-      {createOpen && draft && (
-        <Dialog title="Nuevo albarán" onClose={() => setCreateOpen(false)}>
-          <AlbHeader draft={draft} setDraft={setDraft} customers={customers} />
-          <LinesEditor
-            doc={draft}
-            setDoc={setDraft}
-            products={products}
-            onSaveProduct={onSaveProduct}
-          />
-          <div className="flex justify-end gap-2 mt-3">
-            <button
-              className="px-3 py-2 rounded border"
-              onClick={() => setCreateOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-black text-white"
-              onClick={saveCreate}
-            >
-              Guardar
-            </button>
-          </div>
+      {/* Crear (cabecera + líneas) – usa el estado nuevo */}
+      {createAlbOpen && albDraft && (
+        <Dialog
+          open={!!createAlbOpen}
+          onClose={() => setCreateAlbOpen(false)}
+          title="Nuevo albarán"
+        >
+          {!albDraft ? (
+            <div className="text-sm text-gray-500">Preparando formulario…</div>
+          ) : (
+            <>
+              <AlbHeader draft={albDraft} setDraft={setAlbDraft} customers={customers} />
+              <LinesEditor
+                doc={albDraft}
+                setDoc={setAlbDraft}
+                products={products}
+                onSaveProduct={onSaveProduct}
+              />
+              <div className="flex justify-end gap-2 mt-3">
+                <button className="px-3 py-2 rounded border" onClick={() => setCreateAlbOpen(false)}>
+                  Cancelar
+                </button>
+                <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateAlb}>
+                  Guardar
+                </button>
+              </div>
+            </>
+          )}
         </Dialog>
       )}
 
@@ -325,7 +324,7 @@ export default function AlbaranesPage({
               Cancelar
             </button>
             <button
-              className="px-3 py-2 rounded bg-black text-white"
+              className="px-3 py-2 rounded bg-blue text-white"
               onClick={saveEdit}
             >
               Guardar cambios

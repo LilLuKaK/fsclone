@@ -127,8 +127,8 @@ export default function ClientesPage({
         <span className="text-sm text-gray-500">{filtered.length} clientes</span>
         <div className="flex-1" />
         <button
-          className="px-3 py-2 bg-emerald-600 text-white rounded-lg"
-          onClick={openCreate}
+          className="px-3 py-2 rounded-lg text-white"
+          onClick={() => { setDraft(newClientDraft()); setCreateOpen(true); }}
         >
           Nuevo cliente
         </button>
@@ -442,16 +442,22 @@ export default function ClientesPage({
       </table>
       </div>
       {createOpen && draft && (
-        <Dialog title="Nuevo cliente" onClose={() => setCreateOpen(false)}>
-          <ClientForm draft={draft} setDraft={setDraft} />
-          <div className="flex justify-end gap-2 mt-3">
-            <button className="px-3 py-2 rounded border" onClick={() => setCreateOpen(false)}>
-              Cancelar
-            </button>
-            <button className="px-3 py-2 rounded bg-black text-white" onClick={saveCreate}>
-              Guardar
-            </button>
-          </div>
+        <Dialog open={!!createOpen} onClose={() => setCreateOpen(false)} title="Nuevo cliente">
+          {!draft ? (
+            <div className="text-sm text-gray-500">Preparando formulario…</div>
+          ) : (
+            <>
+              <ClientForm draft={draft} setDraft={setDraft} />
+              <div className="flex justify-end gap-2 mt-3">
+                <button className="px-3 py-2 rounded border" onClick={() => setCreateOpen(false)}>
+                  Cancelar
+                </button>
+                <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreate}>
+                  Guardar
+                </button>
+              </div>
+            </>
+          )}
         </Dialog>
       )}
     </section>
