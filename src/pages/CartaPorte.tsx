@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import Dialog from "../components/Dialog";
 import { fmtDate, openPrintWindow, Seller } from "../utils";
+import Modal from "../components/Modal";
 
 /*
   Datos de Carta de Porte:
@@ -221,7 +222,7 @@ export default function CartaPortePage({
 
       {/* Crear */}
       {createOpen && draft && (
-        <Dialog
+        <Modal
           open={true}
           onClose={() => setCreateOpen(false)}
           title="Nueva Carta de Porte (Nacional)"
@@ -235,23 +236,21 @@ export default function CartaPortePage({
               Guardar
             </button>
           </div>
-        </Dialog>
+        </Modal>
       )}
 
       {/* Editar */}
-      {editOpen && draft && (
-        <Dialog title="Editar Carta de Porte" onClose={() => setEditOpen(false)}>
-          <CPForm draft={draft} setDraft={setDraft} />
-          <div className="flex justify-end gap-2 mt-3">
-            <button className="px-3 py-2 rounded border" onClick={() => setEditOpen(false)}>
-              Cancelar
-            </button>
-            <button className="px-3 py-2 rounded text-white" onClick={saveEdit}>
-              Guardar cambios
-            </button>
-          </div>
-        </Dialog>
-      )}
+      <Modal open={editOpen && !!draft} onClose={() => setEditOpen(false)} title="Editar Carta de Porte">
+        <CPForm draft={draft} setDraft={setDraft} />
+        <div className="flex justify-end gap-2 mt-3">
+          <button className="px-3 py-2 rounded border" onClick={() => setEditOpen(false)}>
+            Cancelar
+          </button>
+          <button className="px-3 py-2 rounded bg-blue text-white" onClick={saveEdit}>
+            Guardar cambios
+          </button>
+        </div>
+      </Modal>
     </section>
   );
 }

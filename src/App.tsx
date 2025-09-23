@@ -12,6 +12,7 @@ import FacturasPage from "./pages/Facturas";
 import CartaPortePage, { renderCPHTML } from "./pages/CartaPorte";
 import ResumenFiscal from "./pages/ResumenFiscal";
 import Dialog from "./components/Dialog";
+import Modal from "./components/Modal";
 
 import "./theme.css";
 
@@ -28,6 +29,7 @@ export default function App() {
   const [invoices, setInvoices] = useState([]);
   const [cartaportes, setCartaPortes] = useState([]);
   const [seqs, setSeqs] = useState(initialSequences());
+  const [debugOpen, setDebugOpen] = useState(true);
 
   const [forceDriveModal, setForceDriveModal] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
@@ -285,36 +287,36 @@ export default function App() {
   return (
     <div className="app-shell mx-auto max-w-7xl p-4 sm:p-5 md:p-6 space-y-5">
       {/* Modal obligatorio de conexión a Drive */}
-      {forceDriveModal && cloud.kind !== "drive" && (
-        <div className="fixed inset-0 z-[120] bg-blue/40 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h2 className="text-xl font-semibold mb-2">Conectar con Google Drive</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Necesitamos conectar con tu Drive para guardar y sincronizar clientes, albaranes y facturas.
-            </p>
-            <button
-              disabled={connectingDrive}
-              onClick={async () => {
-                try {
-                  setConnectingDrive(true);
-                  await drive.connect();
-                  setCloud(drive);
-                  localStorage.setItem("driveConnected","1");
-                  setForceDriveModal(false); // cerrar modal al conectar
-                } catch (e) {
-                  alert(e?.message || "No se pudo conectar con Drive");
-                } finally {
-                  setConnectingDrive(false);
-                }
-              }}
-              className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-60"
-            >
-              {connectingDrive ? "Conectando..." : "Conectar con Google Drive"}
-            </button>
-            {/* Sin botón de cerrar: conexión obligatoria */}
-          </div>
-        </div>
-      )}
+      <Modal
+        open={forceDriveModal && cloud.kind !== "drive"}
+        onClose={() => { /* es obligatorio; si lo quisieras cerrable, quita hideClose */ }}
+        hideClose={true}
+        title="Conectar con Google Drive"
+      >
+        <p className="mb-4">
+          Necesitamos conectar con tu Drive para guardar y sincronizar clientes, albaranes y facturas.
+        </p>
+
+        <button
+          disabled={connectingDrive}
+          onClick={async () => {
+            try {
+              setConnectingDrive(true);
+              await drive.connect();
+              setCloud(drive);
+              localStorage.setItem("driveConnected", "1");
+              setForceDriveModal(false);
+            } catch (e: any) {
+              alert(e?.message || "No se pudo conectar con Drive");
+            } finally {
+              setConnectingDrive(false);
+            }
+          }}
+          className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-60"
+        >
+          {connectingDrive ? "Conectando..." : "Conectar con Google Drive"}
+        </button>
+      </Modal>
       <div className="flex items-center justify-between rounded-xl border p-3">
         <div className="text-sm">{cloud.kind === "drive" ? <>Conectado a <b>Google Drive</b></> : <>Almacenamiento local</>}</div>
         {cloud.kind !== "drive" && (
@@ -419,67 +421,65 @@ export default function App() {
         />
       )}
       
-      {sellerOpen && (
-        <Dialog open={sellerOpen} onClose={()=>setSellerOpen(false)} title="Datos fiscales de la empresa">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="col-span-2">
-              <div className="text-sm text-gray-600 mb-1">Nombre / Razón social</div>
-              <input className="w-full" value={sellerDraft.name}
-                onChange={e=>setSellerDraft({ ...sellerDraft, name:e.target.value })}/>
-            </label>
+      <Modal open={sellerOpen} onClose={() => setSellerOpen(false)} title="Datos fiscales de la empresa">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="col-span-2">
+            <div className="text-sm text-gray-600 mb-1">Nombre / Razón social</div>
+            <input className="w-full" value={sellerDraft.name}
+              onChange={e=>setSellerDraft({ ...sellerDraft, name:e.target.value })}/>
+          </label>
 
-            <label>
-              <div className="text-sm text-gray-600 mb-1">NIF/CIF</div>
-              <input className="w-full" value={sellerDraft.nif}
-                onChange={e=>setSellerDraft({ ...sellerDraft, nif:e.target.value })}/>
-            </label>
+          <label>
+            <div className="text-sm text-gray-600 mb-1">NIF/CIF</div>
+            <input className="w-full" value={sellerDraft.nif}
+              onChange={e=>setSellerDraft({ ...sellerDraft, nif:e.target.value })}/>
+          </label>
 
-            <label>
-              <div className="text-sm text-gray-600 mb-1">Teléfono</div>
-              <input className="w-full" value={sellerDraft.phone}
-                onChange={e=>setSellerDraft({ ...sellerDraft, phone:e.target.value })}/>
-            </label>
+          <label>
+            <div className="text-sm text-gray-600 mb-1">Teléfono</div>
+            <input className="w-full" value={sellerDraft.phone}
+              onChange={e=>setSellerDraft({ ...sellerDraft, phone:e.target.value })}/>
+          </label>
 
-            <label className="col-span-2">
-              <div className="text-sm text-gray-600 mb-1">Dirección</div>
-              <input className="w-full" value={sellerDraft.address}
-                onChange={e=>setSellerDraft({ ...sellerDraft, address:e.target.value })}/>
-            </label>
+          <label className="col-span-2">
+            <div className="text-sm text-gray-600 mb-1">Dirección</div>
+            <input className="w-full" value={sellerDraft.address}
+              onChange={e=>setSellerDraft({ ...sellerDraft, address:e.target.value })}/>
+          </label>
 
-            <label>
-              <div className="text-sm text-gray-600 mb-1">Ciudad</div>
-              <input className="w-full" value={sellerDraft.city}
-                onChange={e=>setSellerDraft({ ...sellerDraft, city:e.target.value })}/>
-            </label>
+          <label>
+            <div className="text-sm text-gray-600 mb-1">Ciudad</div>
+            <input className="w-full" value={sellerDraft.city}
+              onChange={e=>setSellerDraft({ ...sellerDraft, city:e.target.value })}/>
+          </label>
 
-            <label>
-              <div className="text-sm text-gray-600 mb-1">Código Postal</div>
-              <input className="w-full" value={sellerDraft.postalCode}
-                onChange={e=>setSellerDraft({ ...sellerDraft, postalCode:e.target.value })}/>
-            </label>
+          <label>
+            <div className="text-sm text-gray-600 mb-1">Código Postal</div>
+            <input className="w-full" value={sellerDraft.postalCode}
+              onChange={e=>setSellerDraft({ ...sellerDraft, postalCode:e.target.value })}/>
+          </label>
 
-            <label>
-              <div className="text-sm text-gray-600 mb-1">País</div>
-              <input className="w-full" value={sellerDraft.country}
-                onChange={e=>setSellerDraft({ ...sellerDraft, country:e.target.value })}/>
-            </label>
+          <label>
+            <div className="text-sm text-gray-600 mb-1">País</div>
+            <input className="w-full" value={sellerDraft.country}
+              onChange={e=>setSellerDraft({ ...sellerDraft, country:e.target.value })}/>
+          </label>
 
-            <label className="col-span-2">
-              <div className="text-sm text-gray-600 mb-1">Email</div>
-              <input className="w-full" value={sellerDraft.email}
-                onChange={e=>setSellerDraft({ ...sellerDraft, email:e.target.value })}/>
-            </label>
-          </div>
+          <label className="col-span-2">
+            <div className="text-sm text-gray-600 mb-1">Email</div>
+            <input className="w-full" value={sellerDraft.email}
+              onChange={e=>setSellerDraft({ ...sellerDraft, email:e.target.value })}/>
+          </label>
+        </div>
 
-          <div className="flex justify-end gap-2 mt-4">
-            <button className="px-3 py-1 border rounded" onClick={()=>setSellerOpen(false)}>Cancelar</button>
-            <button className="px-3 py-1 bg-emerald-600 text-white rounded"
-              onClick={() => { setSeller(sellerDraft); setSellerOpen(false); }}>
-              Guardar
-            </button>
-          </div>
-        </Dialog>
-      )}
+        <div className="flex justify-end gap-2 mt-4">
+          <button className="px-3 py-1 border rounded" onClick={()=>setSellerOpen(false)}>Cancelar</button>
+          <button className="px-3 py-1 bg-emerald-600 text-white rounded"
+            onClick={() => { setSeller(sellerDraft); setSellerOpen(false); }}>
+            Guardar
+          </button>
+        </div>
+      </Modal>
 
       {(loading || connectingDrive) && (
         <div className="screen-blocker">

@@ -1,5 +1,4 @@
 // src/components/Dialog.tsx
-// Modal con portal + overlay + bloqueo de scroll y z-index alto
 import React, { useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
@@ -8,36 +7,30 @@ type Props = {
   onClose: () => void;
   title?: React.ReactNode;
   children: React.ReactNode;
-  hideClose?: boolean; // para modales “obligatorios”
+  hideClose?: boolean;
 };
 
-export default function Dialog({
-  open = true,
-  onClose,
-  title,
-  children,
-  hideClose,
-}: Props) {
-  // Cerrar con ESC
+export default function Dialog({ open = true, onClose, title, children, hideClose }: Props) {
   const onKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape" && !hideClose) onClose();
   }, [onClose, hideClose]);
 
   useEffect(() => {
     if (!open) return;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [open, onKeyDown]);
 
   if (!open) return null;
 
-  // z-index altos para ir por encima de cualquier overlay (screen-blocker = 9999)
+  // Muy por encima del blocker (9999) y de cualquier otro overlay
   const Z_OVERLAY = 10040;
-  const Z_DIALOG = 10050;
+  const Z_DIALOG  = 10050;
 
   return createPortal(
     <div
@@ -46,7 +39,6 @@ export default function Dialog({
       className="fixed inset-0 flex items-start sm:items-center justify-center p-4"
       style={{ zIndex: Z_OVERLAY }}
       onMouseDown={(e) => {
-        // Clic fuera del cuadro = cerrar (si no es obligatorio)
         if (e.target === e.currentTarget && !hideClose) onClose();
       }}
     >
@@ -58,12 +50,7 @@ export default function Dialog({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">{title}</h2>
           {!hideClose && (
-            <button
-              className="px-2 py-1 rounded border"
-              onClick={onClose}
-            >
-              ✕
-            </button>
+            <button className="px-2 py-1 rounded border" onClick={onClose}>✕</button>
           )}
         </div>
         {children}

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { SERIES, fmtDate, fmtMoney, computeTotals } from "../utils";
 import Dialog from "../components/Dialog";
 import LinesEditor from "../components/LinesEditor";
+import Modal from "../components/Modal";
 
 export default function FacturasPage({
   customers,
@@ -320,66 +321,52 @@ export default function FacturasPage({
       </div>
 
       {/* Crear (cabecera + líneas) – usa el estado nuevo */}
-      {createFacOpen && facDraft && (
-        <Dialog
-          open={!!createFacOpen}
-          onClose={() => setCreateFacOpen(false)}
-          title="Nueva factura"
-        >
-          {!facDraft ? (
-            <div className="text-sm text-gray-500">Preparando formulario…</div>
-          ) : (
-            <>
-              <FacHeader draft={facDraft} setDraft={setFacDraft} customers={customers} />
-              <LinesEditor
-                doc={facDraft}
-                setDoc={setFacDraft}
-                products={products}
-                onSaveProduct={onSaveProduct}
-              />
-              <div className="flex justify-end gap-2 mt-3">
-                <button className="px-3 py-2 rounded border" onClick={() => setCreateFacOpen(false)}>
-                  Cancelar
-                </button>
-                <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateFac}>
-                  Guardar
-                </button>
-              </div>
-            </>
-          )}
-        </Dialog>
-      )}
+      <Modal
+        open={!!createFacOpen}
+        onClose={() => setCreateFacOpen(false)}
+        title="Nueva factura"
+      >
+        <FacHeader draft={facDraft} setDraft={setFacDraft} customers={customers} />
+        <LinesEditor
+          doc={facDraft}
+          setDoc={setFacDraft}
+          products={products}
+          onSaveProduct={onSaveProduct}
+        />
+        <div className="flex justify-end gap-2 mt-3">
+          <button className="px-3 py-2 rounded border" onClick={() => setCreateFacOpen(false)}>
+            Cancelar
+          </button>
+          <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateFac}>
+            Guardar
+          </button>
+        </div>
+      </Modal>
 
       {/* Editar (cabecera + líneas) */}
-      {editOpen && draft && (
-        <Dialog title="Editar factura" onClose={() => setEditOpen(false)}>
-          <FacHeader
-            draft={draft}
-            setDraft={setDraft}
-            customers={customers}
-          />
-          <LinesEditor
-            doc={draft}
-            setDoc={setDraft}
-            products={products}
-            onSaveProduct={onSaveProduct}
-          />
-          <div className="flex justify-end gap-2 mt-3">
-            <button
-              className="px-3 py-2 rounded border"
-              onClick={() => setEditOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-blue text-white"
-              onClick={saveEdit}
-            >
-              Guardar cambios
-            </button>
-          </div>
-        </Dialog>
-      )}
+      <Modal open={editOpen && !!draft} onClose={() => setEditOpen(false)} title="Editar factura">
+        <FacHeader draft={draft} setDraft={setDraft} customers={customers} />
+        <LinesEditor
+          doc={draft}
+          setDoc={setDraft}
+          products={products}
+          onSaveProduct={onSaveProduct}
+        />
+        <div className="flex justify-end gap-2 mt-3">
+          <button
+            className="px-3 py-2 rounded border"
+            onClick={() => setEditOpen(false)}
+          >
+            Cancelar
+          </button>
+          <button
+            className="px-3 py-2 rounded bg-blue text-white"
+            onClick={saveEdit}
+          >
+            Guardar cambios
+          </button>
+        </div>
+      </Modal>
     </section>
   );
 }
@@ -407,7 +394,9 @@ function FacHeader({ draft, setDraft, customers }) {
         <input
           type="date"
           value={draft.date}
-          onChange={(e) => setDraft({ ...draft, date: e.target.value })}
+          onChange={(e) => 
+            setDraft({ ...draft, date: e.target.value })
+          }
           className="w-full border rounded p-2"
         />
       </div>

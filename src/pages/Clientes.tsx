@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { fmtDate, fmtMoney, computeTotals } from "../utils";
 import Dialog from "./../components/Dialog";
 import ClientForm from "./../components/ClientForm";
+import Modal from "../components/Modal";
 
 type ClientesProps = {
   customers: any[];
@@ -441,25 +442,17 @@ export default function ClientesPage({
         </tbody>
       </table>
       </div>
-      {createOpen && draft && (
-        <Dialog open={!!createOpen} onClose={() => setCreateOpen(false)} title="Nuevo cliente">
-          {!draft ? (
-            <div className="text-sm text-gray-500">Preparando formulario…</div>
-          ) : (
-            <>
-              <ClientForm draft={draft} setDraft={setDraft} />
-              <div className="flex justify-end gap-2 mt-3">
-                <button className="px-3 py-2 rounded border" onClick={() => setCreateOpen(false)}>
-                  Cancelar
-                </button>
-                <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreate}>
-                  Guardar
-                </button>
-              </div>
-            </>
-          )}
-        </Dialog>
-      )}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo cliente">
+        <ClientForm draft={draft} setDraft={setDraft} />
+        <div className="flex justify-end gap-2 mt-3">
+          <button className="px-3 py-2 rounded border" onClick={() => setCreateOpen(false)}>
+            Cancelar
+          </button>
+          <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreate}>
+            Guardar
+          </button>
+        </div>
+      </Modal>
     </section>
   );
 }

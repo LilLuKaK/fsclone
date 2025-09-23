@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { SERIES, fmtDate, fmtMoney, computeTotals } from "../utils";
 import Dialog from "./../components/Dialog";
 import LinesEditor from "../components/LinesEditor";
+import Modal from "../components/Modal";
 
 export default function AlbaranesPage({
   customers,
@@ -276,62 +277,48 @@ export default function AlbaranesPage({
       </div>
 
       {/* Crear (cabecera + líneas) – usa el estado nuevo */}
-      {createAlbOpen && albDraft && (
-        <Dialog
-          open={!!createAlbOpen}
-          onClose={() => setCreateAlbOpen(false)}
-          title="Nuevo albarán"
-        >
-          {!albDraft ? (
-            <div className="text-sm text-gray-500">Preparando formulario…</div>
-          ) : (
-            <>
-              <AlbHeader draft={albDraft} setDraft={setAlbDraft} customers={customers} />
-              <LinesEditor
-                doc={albDraft}
-                setDoc={setAlbDraft}
-                products={products}
-                onSaveProduct={onSaveProduct}
-              />
-              <div className="flex justify-end gap-2 mt-3">
-                <button className="px-3 py-2 rounded border" onClick={() => setCreateAlbOpen(false)}>
-                  Cancelar
-                </button>
-                <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateAlb}>
-                  Guardar
-                </button>
-              </div>
-            </>
-          )}
-        </Dialog>
-      )}
+      <Modal open={!!createAlbOpen} onClose={() => setCreateAlbOpen(false)} title="Nuevo albarán">
+        <AlbHeader draft={albDraft} setDraft={setAlbDraft} customers={customers} />
+        <LinesEditor
+          doc={albDraft}
+          setDoc={setAlbDraft}
+          products={products}
+          onSaveProduct={onSaveProduct}
+        />
+        <div className="flex justify-end gap-2 mt-3">
+          <button className="px-3 py-2 rounded border" onClick={() => setCreateAlbOpen(false)}>
+            Cancelar
+          </button>
+          <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateAlb}>
+            Guardar
+          </button>
+        </div>
+      </Modal>
 
       {/* Editar (cabecera + líneas) */}
-      {editOpen && draft && (
-        <Dialog title="Editar albarán" onClose={() => setEditOpen(false)}>
-          <AlbHeader draft={draft} setDraft={setDraft} customers={customers} />
-          <LinesEditor
-            doc={draft}
-            setDoc={setDraft}
-            products={products}
-            onSaveProduct={onSaveProduct}
-          />
-          <div className="flex justify-end gap-2 mt-3">
-            <button
-              className="px-3 py-2 rounded border"
-              onClick={() => setEditOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-blue text-white"
-              onClick={saveEdit}
-            >
-              Guardar cambios
-            </button>
-          </div>
-        </Dialog>
-      )}
+      <Modal open={editOpen && !!draft} onClose={() => setEditOpen(false)} title="Editar albarán">
+        <AlbHeader draft={draft} setDraft={setDraft} customers={customers} />
+        <LinesEditor
+          doc={draft}
+          setDoc={setDraft}
+          products={products}
+          onSaveProduct={onSaveProduct}
+        />
+        <div className="flex justify-end gap-2 mt-3">
+          <button
+            className="px-3 py-2 rounded border"
+            onClick={() => setEditOpen(false)}
+          >
+            Cancelar
+          </button>
+          <button
+            className="px-3 py-2 rounded bg-blue text-white"
+            onClick={saveEdit}
+          >
+            Guardar cambios
+          </button>
+        </div>
+      </Modal>
     </section>
   );
 }
