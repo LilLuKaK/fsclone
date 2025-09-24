@@ -343,18 +343,20 @@ export default function App() {
         </div>
       )}
 
-      <header className="flex items-center justify-between">
-        <nav className="flex gap-2 p-1 border rounded-full">
-          <button className={`px-3 py-1 rounded-lg ${tab==="albaranes"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("albaranes")}>Albaranes</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="facturas"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("facturas")}>Facturas</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="cp"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("cp")}>Carta de Porte</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="clientes"?"bg-blue text-white":"bg-gray-100"}`} onClick={() => setTab("clientes")}>Clientes</button>
-          <button className={`px-3 py-1 rounded-lg ${tab==="contabilidad"?"bg-blue text-white":"bg-gray-100"}`} onClick={()=>setTab("contabilidad")}> Contabilidad </button>
-          <button className="px-3 py-1 border rounded" onClick={() => setSellerOpen(true)}>
-            ⚙️ Empresa
-          </button>
-
+      <header className="flex flex-wrap items-center gap-2">
+        {/* Pestañas */}
+        <nav className="nav-tabs w-full sm:w-auto">
+          <button className={`btn-tab ${tab==="albaranes"?"btn-tab--active":""}`} onClick={() => setTab("albaranes")}>Albaranes</button>
+          <button className={`btn-tab ${tab==="facturas"?"btn-tab--active":""}`} onClick={() => setTab("facturas")}>Facturas</button>
+          <button className={`btn-tab ${tab==="cp"?"btn-tab--active":""}`} onClick={() => setTab("cp")}>Carta de Porte</button>
+          <button className={`btn-tab ${tab==="clientes"?"btn-tab--active":""}`} onClick={() => setTab("clientes")}>Clientes</button>
+          <button className={`btn-tab ${tab==="contabilidad"?"btn-tab--active":""}`} onClick={()=>setTab("contabilidad")}>Contabilidad</button>
         </nav>
+
+        {/* Acciones a la derecha (se van abajo en móvil) */}
+        <div className="flex gap-2 w-full sm:w-auto justify-end">
+          <button className="px-3 py-1 border rounded" onClick={() => setSellerOpen(true)}>⚙️ Empresa</button>
+        </div>
       </header>
 
       {tab === "albaranes" && (

@@ -73,3 +73,58 @@ html,body{ background:var(--bg); -webkit-font-smoothing:antialiased; }
   align-items: center;
   justify-content: center;
 }
+
+/* ===== NAV TABS RESPONSIVE ===== */
+.nav-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap: .5rem;
+  padding: .25rem;
+  border: 1px solid #e5e7eb;    /* tailwind border */
+  border-radius: .75rem;         /* ~ rounded-xl */
+  background: #f8fafc;           /* sutil fondo */
+}
+
+/* Cada botón ocupa ~50% en móvil, envuelve en varias filas; en pantallas medias vuelve a tamaño auto */
+.btn-tab{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding: .5rem .75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .75rem;
+  background:#fff;
+  font-weight: 500;
+  flex: 1 1 calc(50% - .5rem);   /* dos columnas en móvil */
+}
+@media (max-width: 360px){
+  .btn-tab{ flex-basis: 100%; }  /* 1 por fila en pantallas muy estrechas */
+}
+@media (min-width: 640px){       /* sm: en adelante, fila única si cabe */
+  .btn-tab{ flex: 0 0 auto; }
+}
+
+.btn-tab--active{
+  background: #111827;
+  color:#fff;
+  border-color:#111827;
+}
+
+/* ===== TABLAS RESPONSIVE (solo en la app, no afecta a PDFs de impresión) ===== */
+@media (max-width: 760px){
+  .app-shell table th,
+  .app-shell table td{
+    padding: 10px 8px;           /* +espacio lateral */
+    font-size: 14px;             /* un pelín mayor si quieres */
+    line-height: 1.4;
+  }
+  .app-shell table tr{
+    /* crece en pantallas estrechas; “exponencial” perceptivo usando clamp con vw */
+    height: clamp(44px, 6vw + 28px, 88px); /* tope lógico 88px */
+  }
+}
+
+/* Si quieres aún más altura en muy estrechos */
+@media (max-width: 380px){
+  .app-shell table tr{
+    height: clamp(56px, 8vw + 36px, 104px);
+  }
+}
