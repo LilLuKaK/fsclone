@@ -107,58 +107,52 @@ export function nextNumber(seqs, seriesCode: string, date: string) {
 }
 
 // @ts-nocheck
-// Imprime HTML: en móvil abre pestaña nueva; en escritorio, iframe oculto
-export function openPrintWindow(html: string, opts?: { title?: string }) {
-  const ua = navigator.userAgent || "";
+// Imprime HTML: móvil => nueva pestaña "blob:" con auto-print; desktop => iframe oculto
+export function openPrintWindow(html: string, opts?: { title?: string; page?: "A4" | "Letter" }) {
+  const ua = navigator.userAgent || navigator.vendor || "";
   const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+  const pageSize = opts?.page ?? "A4";
 
-  // Aseguramos meta viewport + CSS de impresión si faltan
-  const ensurePrintHTML = (raw: string) => {
-    const hasHead = /<head[^>]*>/i.test(raw);
-    const meta =
-      `<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">`;
-    const printCss =
-      `<style>
-        @page { size: A4; margin: 14mm; } /* cambia a Letter si quieres */
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      </style>`;
-    if (hasHead) {
-      return raw.replace(/<head[^>]*>/i, m => `${m}\n${meta}\n${printCss}\n`);
+  // Inserta meta viewport + CSS de impresión y (en móvil) script de auto-print
+  const buildDoc = (raw: string, autoPrint: boolean) => {
+    const meta = `<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">`;
+    const printCss = `<style>
+      @page { size: ${pageSize}; margin: 14mm; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    </style>`;
+    const auto = autoPrint
+      ? `<script>
+          window.addEventListener('load', function(){
+            setTimeout(function(){
+              try{ window.focus(); window.print(); }catch(e){}
+            }, 300);
+          });
+        </script>`
+      : "";
+    if (/<head[^>]*>/i.test(raw)) {
+      return raw.replace(/<head[^>]*>/i, m => `${m}\n${meta}\n${printCss}\n${auto}\n`);
     }
-    return `<!doctype html><html><head>${meta}${printCss}</head><body>${raw}</body></html>`;
+    return `<!doctype html><html><head>${meta}${printCss}${auto}</head><body>${raw}</body></html>`;
   };
 
-  const docHTML = ensurePrintHTML(html);
-
   if (isMobile) {
-    // --- Camino móvil: nueva pestaña/ventana con solo el doc ---
-    const w = window.open("", "_blank");
+    // ——— Camino MÓVIL: pestaña nueva con blob: y auto-print dentro del propio documento
+    const docHTML = buildDoc(html, true);
+    const blob = new Blob([docHTML], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank"); // no lo cerramos desde aquí
     if (!w) {
-      alert("El bloqueador de ventanas emergentes impide abrir la vista de impresión.");
-      return;
+      alert("No se pudo abrir la vista de impresión. Permite ventanas emergentes para esta web.");
     }
-    try {
-      w.document.open();
-      w.document.write(docHTML);
-      w.document.close();
-      if (opts?.title) { try { w.document.title = opts.title; } catch {} }
-
-      // Espera breve para layout/recursos y lanza print
-      const doPrint = () => { try { w.focus(); w.print(); } catch {} };
-      // dos ticks por si imágenes/Google fonts
-      w.addEventListener("load", () => setTimeout(doPrint, 150));
-      setTimeout(doPrint, 350);
-      // Cierre opcional tras un rato
-      setTimeout(() => { try { w.close(); } catch {} }, 2000);
-    } catch {
-      try { w.close(); } catch {}
-    }
+    // revoca el blob cuando ya no lo necesites (tiempo prudente)
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return;
   }
 
-  // --- Camino escritorio: iframe oculto ---
+  // ——— Camino ESCRITORIO: iframe oculto + print desde el iframe
+  const docHTML = buildDoc(html, false);
   const iframe = document.createElement("iframe");
   Object.assign(iframe.style, {
     position: "fixed", right: "0", bottom: "0",
@@ -181,7 +175,6 @@ export function openPrintWindow(html: string, opts?: { title?: string }) {
   try {
     (iframe as any).srcdoc = docHTML;
   } catch {
-    // Fallback sin srcdoc
     document.body.appendChild(iframe);
     const doc = iframe.contentWindow?.document;
     doc?.open(); doc?.write(docHTML); doc?.close();
