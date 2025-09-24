@@ -107,82 +107,63 @@ export function nextNumber(seqs, seriesCode: string, date: string) {
 }
 
 // @ts-nocheck
-export function openPrintWindow(html: string) {
-  // Asegura que el HTML tenga auto-print si se abre en otra pestaña
-  const ensureAutoPrint = (raw: string) => {
-    // Si ya tiene onload que imprima, respetamos
-    if (/\bonload=.*print\(\)/i.test(raw)) return raw;
-    // Insertamos onload en <body> (o lo creamos)
-    if (/<body[^>]*>/i.test(raw)) {
-      return raw.replace(
-        /<body([^>]*)>/i,
-        `<body$1 onload="try{window.focus();window.print();setTimeout(()=>window.close(),200);}catch(e){}">`
-      );
-    }
-    // Si no hay <html>/<body>, envolvemos
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Imprimir</title></head>
-<body onload="try{window.focus();window.print();setTimeout(()=>window.close(),200);}catch(e){}">
-${raw}
-</body></html>`;
+// Imprime HTML en un iframe oculto (funciona en móvil sin popups)
+export function openPrintWindow(html: string, opts?: { title?: string }) {
+  // crea iframe invisible pero con 1x1px (algunos motores no imprimen iframes 0x0)
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "1px";
+  iframe.style.height = "1px";
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+  iframe.setAttribute("aria-hidden", "true");
+
+  const cleanup = () => {
+    try { iframe.parentNode?.removeChild(iframe); } catch {}
   };
 
-  const htmlDoc = ensureAutoPrint(html);
-
-  /* ====== Estrategia 1: ventana nueva ====== 
-  const w = window.open("", "_blank", "noopener,noreferrer");
-  if (w && "document" in w) {
-    try {
-      w.document.open();
-      w.document.write(htmlDoc);
-      w.document.close();
-      // Por si el onload del <body> no dispara, tenemos plan B:
-      w.addEventListener?.("load", () => {
-        try { w.focus(); w.print(); setTimeout(() => w.close(), 200); } catch {}
-      });
-      return;
-    } catch {
-      // seguimos con iframe
-    }
-  }*/
-
-  /* ====== Estrategia 2: iframe oculto ====== */
-  try {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.setAttribute("sandbox", "allow-modals allow-same-origin allow-scripts");
-    // srcdoc imprime al cargar (lleva onload en <body>)
-    iframe.srcdoc = htmlDoc;
-    iframe.onload = () => {
+  const onLoad = () => {
+    // dar un respiro para layout/recursos
+    setTimeout(() => {
       try {
-        const win = iframe.contentWindow;
-        win?.focus();
-        win?.print?.();
-        setTimeout(() => {
-          iframe.parentNode?.removeChild(iframe);
-        }, 300);
-      } catch {
-        iframe.parentNode?.removeChild(iframe);
+        const win = iframe.contentWindow!;
+        if (opts?.title) {
+          try { win.document.title = opts.title; } catch {}
+        }
+        win.focus();
+        win.print();
+      } finally {
+        // quita el iframe tras un ratito (evita cerrarlo antes de que el diálogo se abra)
+        setTimeout(cleanup, 1500);
       }
-    };
-    document.body.appendChild(iframe);
-    return;
-  } catch {
-    // seguimos con blob
-  }
+    }, 150);
+  };
 
-  /* ====== Estrategia 3: abrir en esta pestaña con Blob ====== */
+  iframe.onload = onLoad;
+
   try {
-    const blob = new Blob([htmlDoc], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    // Abrir en la misma pestaña evita bloqueos de popup
-    window.location.href = url;
-  } catch {
-    alert("No se pudo abrir la ventana de impresión. Revisa el bloqueador de pop-ups.");
+    // Mejor usar srcdoc si existe
+    if ("srcdoc" in iframe) {
+      (iframe as any).srcdoc = html;
+      document.body.appendChild(iframe);
+    } else {
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow?.document;
+      if (!doc) throw new Error("No iframe document");
+      doc.open(); doc.write(html); doc.close();
+    }
+  } catch (e) {
+    cleanup();
+    // último recurso: intenta abrir en nueva pestaña (por si quieres verlo)
+    const w = window.open("", "_blank", "noopener,noreferrer");
+    if (w) {
+      w.document.open(); w.document.write(html); w.document.close();
+      setTimeout(() => { try { w.print(); } catch {} }, 250);
+    } else {
+      alert("No se pudo abrir el contenido para imprimir.");
+    }
   }
 }
 
