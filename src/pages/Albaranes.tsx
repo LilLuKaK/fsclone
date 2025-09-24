@@ -4,7 +4,6 @@ import { SERIES, fmtDate, fmtMoney, computeTotals } from "../utils";
 import Dialog from "./../components/Dialog";
 import LinesEditor from "../components/LinesEditor";
 import Modal from "../components/Modal";
-import ConfirmDelete from "../components/ConfirmDelete";
 
 export default function AlbaranesPage({
   customers,
