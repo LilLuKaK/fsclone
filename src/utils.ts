@@ -228,7 +228,7 @@ export async function htmlToPDFBlob(html: string): Promise<Blob> {
   // Asegurar mismo contexto que impresión
   const extra = doc.createElement("style");
   extra.textContent = `
-    @page{ size:A4; margin:0 }
+    @page{ size: Letter; margin: 14mm; }
     html,body{ margin:0; padding:0 }
     body{-webkit-print-color-adjust:exact; print-color-adjust:exact}
   `;
