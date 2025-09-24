@@ -107,65 +107,89 @@ export function nextNumber(seqs, seriesCode: string, date: string) {
 }
 
 // @ts-nocheck
-// Imprime HTML en un iframe oculto (funciona en móvil sin popups)
+// Imprime HTML: en móvil abre pestaña nueva; en escritorio, iframe oculto
 export function openPrintWindow(html: string, opts?: { title?: string }) {
-  // crea iframe invisible pero con 1x1px (algunos motores no imprimen iframes 0x0)
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "1px";
-  iframe.style.height = "1px";
-  iframe.style.opacity = "0";
-  iframe.style.pointerEvents = "none";
-  iframe.setAttribute("aria-hidden", "true");
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
 
-  const cleanup = () => {
-    try { iframe.parentNode?.removeChild(iframe); } catch {}
+  // Aseguramos meta viewport + CSS de impresión si faltan
+  const ensurePrintHTML = (raw: string) => {
+    const hasHead = /<head[^>]*>/i.test(raw);
+    const meta =
+      `<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">`;
+    const printCss =
+      `<style>
+        @page { size: A4; margin: 14mm; } /* cambia a Letter si quieres */
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      </style>`;
+    if (hasHead) {
+      return raw.replace(/<head[^>]*>/i, m => `${m}\n${meta}\n${printCss}\n`);
+    }
+    return `<!doctype html><html><head>${meta}${printCss}</head><body>${raw}</body></html>`;
   };
 
-  const onLoad = () => {
-    // dar un respiro para layout/recursos
+  const docHTML = ensurePrintHTML(html);
+
+  if (isMobile) {
+    // --- Camino móvil: nueva pestaña/ventana con solo el doc ---
+    const w = window.open("", "_blank");
+    if (!w) {
+      alert("El bloqueador de ventanas emergentes impide abrir la vista de impresión.");
+      return;
+    }
+    try {
+      w.document.open();
+      w.document.write(docHTML);
+      w.document.close();
+      if (opts?.title) { try { w.document.title = opts.title; } catch {} }
+
+      // Espera breve para layout/recursos y lanza print
+      const doPrint = () => { try { w.focus(); w.print(); } catch {} };
+      // dos ticks por si imágenes/Google fonts
+      w.addEventListener("load", () => setTimeout(doPrint, 150));
+      setTimeout(doPrint, 350);
+      // Cierre opcional tras un rato
+      setTimeout(() => { try { w.close(); } catch {} }, 2000);
+    } catch {
+      try { w.close(); } catch {}
+    }
+    return;
+  }
+
+  // --- Camino escritorio: iframe oculto ---
+  const iframe = document.createElement("iframe");
+  Object.assign(iframe.style, {
+    position: "fixed", right: "0", bottom: "0",
+    width: "1px", height: "1px", opacity: "0", pointerEvents: "none",
+  } as CSSStyleDeclaration);
+  const cleanup = () => { try { iframe.parentNode?.removeChild(iframe); } catch {} };
+
+  iframe.onload = () => {
     setTimeout(() => {
       try {
         const win = iframe.contentWindow!;
-        if (opts?.title) {
-          try { win.document.title = opts.title; } catch {}
-        }
-        win.focus();
-        win.print();
+        if (opts?.title) { try { win.document.title = opts.title; } catch {} }
+        win.focus(); win.print();
       } finally {
-        // quita el iframe tras un ratito (evita cerrarlo antes de que el diálogo se abra)
         setTimeout(cleanup, 1500);
       }
     }, 150);
   };
 
-  iframe.onload = onLoad;
-
   try {
-    // Mejor usar srcdoc si existe
-    if ("srcdoc" in iframe) {
-      (iframe as any).srcdoc = html;
-      document.body.appendChild(iframe);
-    } else {
-      document.body.appendChild(iframe);
-      const doc = iframe.contentWindow?.document;
-      if (!doc) throw new Error("No iframe document");
-      doc.open(); doc.write(html); doc.close();
-    }
-  } catch (e) {
-    cleanup();
-    // último recurso: intenta abrir en nueva pestaña (por si quieres verlo)
-    const w = window.open("", "_blank", "noopener,noreferrer");
-    if (w) {
-      w.document.open(); w.document.write(html); w.document.close();
-      setTimeout(() => { try { w.print(); } catch {} }, 250);
-    } else {
-      alert("No se pudo abrir el contenido para imprimir.");
-    }
+    (iframe as any).srcdoc = docHTML;
+  } catch {
+    // Fallback sin srcdoc
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    doc?.open(); doc?.write(docHTML); doc?.close();
+    return;
   }
+  document.body.appendChild(iframe);
 }
+
 
 // @ts-nocheck
 
