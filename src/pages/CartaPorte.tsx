@@ -483,7 +483,6 @@ function CPForm({ draft, setDraft }) {
 
 /** Impresión CP */
 export function renderCPHTML(cp: any) {
-  // CSS de impresión robusto (A4 vertical). Cambia a Letter o landscape más abajo si lo necesitas.
   const PRINT_CSS = `
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
@@ -506,23 +505,20 @@ export function renderCPHTML(cp: any) {
     .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
     .col{ min-width: 45%; }
     .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
+
     table{ width:100%; border-collapse: collapse; table-layout: fixed; }
-    th,td{ border-bottom:1px solid #ddd; padding:6pt; text-align:left; vertical-align:top; word-break: break-word; }
-    th.num, td.num { text-align:right; }
+    th,td{ border-bottom:1px solid #ddd; padding:6pt; vertical-align:top; }
+    th{ text-align:left; font-weight:600; }
+    th.num, td.num { text-align:right; font-variant-numeric: tabular-nums; }
     @media print { .page { box-shadow:none } }
   `;
 
-  // Helpers seguros
   const val = (x: any, fallback = "") => (x ?? fallback);
-  const dateSafe = (d: any) => {
-    // admite cp.fecha o cp.date
-    try { return fmtDate(d); } catch { return ""; }
-  };
+  const dateSafe = (d: any) => { try { return fmtDate(d); } catch { return ""; } };
 
-  // Campos típicos en una Carta de Porte (usa los que tengas en tu modelo)
   const numero = val(cp.numero, "");
   const fecha = val(cp.fecha ?? cp.date, "");
-  const remitente = val(cp.remitente, "");            // tu empresa o quien expide
+  const remitente = val(cp.remitente, "");
   const remitenteNif = val(cp.remitenteNif, "");
   const remitenteDir = val(cp.remitenteDir, "");
 
@@ -536,7 +532,16 @@ export function renderCPHTML(cp: any) {
   const matricula = val(cp.matricula, "");
   const observaciones = val(cp.observaciones, "");
 
-  // Líneas/mercancías
+  const COLS_CP = `
+    <colgroup>
+      <col style="width:26%">
+      <col>                    <!-- Descripción ocupa el resto -->
+      <col style="width:12%">
+      <col style="width:14%">
+      <col style="width:14%">
+    </colgroup>
+  `;
+
   const linesHTML = (Array.isArray(cp.lines) ? cp.lines : []).map((l: any) => {
     const prod = val(l.producto ?? l.name, "");
     const desc = val(l.descripcion ?? l.desc, "");
@@ -615,13 +620,14 @@ export function renderCPHTML(cp: any) {
         </div>
 
         <table style="margin-top:12pt">
+          ${COLS_CP}
           <thead>
             <tr>
-              <th style="width:26%">Producto</th>
+              <th>Producto</th>
               <th>Descripción</th>
-              <th class="num" style="width:12%">Bultos</th>
-              <th class="num" style="width:14%">Peso</th>
-              <th class="num" style="width:14%">Volumen</th>
+              <th class="num">Bultos</th>
+              <th class="num">Peso</th>
+              <th class="num">Volumen</th>
             </tr>
           </thead>
           <tbody>
@@ -636,6 +642,7 @@ export function renderCPHTML(cp: any) {
     </body>
   </html>`;
 }
+
 
 function SkeletonRows({ cols, rows=6 }){
   return (

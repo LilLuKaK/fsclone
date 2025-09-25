@@ -147,13 +147,12 @@ export default function App() {
   }, []);
 
   const customerById = (id) => customers.find((c) => c.id === id);
-  function renderDocHTML(doc, type) {
+  function renderDocHTML(doc: any, type: "albaran" | "factura") {
     const isInvoice = type === "factura";
     const c = customerById(doc.customerId);
     const seller = Seller;
 
     const PRINT_CSS = `
-      /* Tamaño de página fijo en puntos (A4 = 595x842 pt) */
       @page { size: A4; margin: 0; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
@@ -162,47 +161,60 @@ export default function App() {
         font-size: 11pt; color: #111;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
       }
-
-      /* Página en pt (nada de mm/px) */
       .page {
-        width: 595pt;           /* 210 mm */
-        min-height: 842pt;      /* 297 mm */
+        width: 595pt;            /* A4 en puntos */
+        min-height: 842pt;
         margin: 0 auto;
-        padding: 40pt;          /* ~14 mm */
+        padding: 40pt;           /* margen interior */
         background: #fff;
       }
-
       h1{ font-size:16pt; margin:0 0 8pt }
       h2{ font-size:12pt; margin:0 }
-      table{ width:100%; border-collapse: collapse; table-layout: fixed; }
-      th,td{ border-bottom:1px solid #ddd; padding:6pt; text-align:right; vertical-align:top; word-break: break-word; }
-      th:nth-child(1),td:nth-child(1){ text-align:left }
       .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
       .muted{ color:#666; font-size:9pt }
-      .tot{ margin-top:12pt; float:right; min-width: 170pt }
       .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
+
+      /* Tabla con distribución fija */
+      table{ width:100%; border-collapse: collapse; table-layout: fixed; }
+      th,td{ border-bottom:1px solid #ddd; padding:6pt; vertical-align:top; }
+      th{ text-align:left; font-weight:600; }
+      .desc{ text-align:left; word-break: break-word; }
+      .num { text-align:right; font-variant-numeric: tabular-nums; } /* números monoespaciados */
+      .tot{ margin-top:12pt; float:right; min-width: 170pt }
       @media print { .page { box-shadow:none } }
     `;
 
     const addrSeller = `${seller.address}, ${seller.postalCode} ${seller.city} (${seller.country})`;
     const addrBuyer = `${c?.address || ""}${c?.postalCode ? ", " + c.postalCode : ""}${c?.city ? " " + c.city : ""}${c?.country ? " (" + c.country + ")" : ""}`;
 
-    const linesHTML = (doc.lines || []).map((l) => {
+    const COLGROUP = `
+      <colgroup>
+        <col style="width:42%;"> <!-- Descripción -->
+        <col style="width:8%;">  <!-- Ud. -->
+        <col style="width:14%;"> <!-- Precio -->
+        <col style="width:10%;"> <!-- Dto -->
+        <col style="width:12%;"> <!-- Tipo -->
+        <col style="width:14%;"> <!-- Importe -->
+      </colgroup>
+    `;
+
+    const linesHTML = (doc.lines || []).map((l: any) => {
       const vat = VAT_RATES.find((v) => v.id === l.vat) || VAT_RATES[0];
       const applyRE = isInvoice && !!c?.re;
-      const reRate = applyRE
-        ? (l.vat === "iva21" ? 5.2 : l.vat === "iva10" ? 1.4 : l.vat === "iva4" ? 0.5 : 0)
-        : 0;
+      const reRate =
+        applyRE
+          ? (l.vat === "iva21" ? 5.2 : l.vat === "iva10" ? 1.4 : l.vat === "iva4" ? 0.5 : 0)
+          : 0;
       const total = computeTotals({ lines: [l] }, c, { isInvoice }).total;
       const namePlusDesc = [l.name, l.desc].filter(Boolean).join(" — ");
 
       return `<tr>
-        <td>${namePlusDesc || ""}</td>
-        <td>${l.qty}</td>
-        <td>${fmtMoney(l.price)}</td>
-        <td>${l.dtopct || 0}%</td>
-        <td>${vat.name}${applyRE && reRate ? ` + RE ${reRate}%` : ""}</td>
-        <td>${fmtMoney(total)}</td>
+        <td class="desc">${namePlusDesc || ""}</td>
+        <td class="num">${l.qty ?? ""}</td>
+        <td class="num">${fmtMoney(l.price ?? 0)}</td>
+        <td class="num">${l.dtopct || 0}%</td>
+        <td class="num">${vat?.name || ""}${applyRE && reRate ? ` + RE ${reRate}%` : ""}</td>
+        <td class="num">${fmtMoney(total)}</td>
       </tr>`;
     }).join("");
 
@@ -224,59 +236,68 @@ export default function App() {
 
     return `<!doctype html>
     <html>
-    <head>
-      <meta charset="utf-8">
-      <title>${title} ${num}</title>
-      <style>${PRINT_CSS}</style>
-    </head>
-    <body>
-      <div class="page">
-        <div class="row">
-          <div>
-            <h2>${seller.name}</h2>
-            <div class="muted">NIF: ${seller.nif}</div>
-            <div class="muted">${addrSeller}</div>
-            <div class="muted">${seller.email} · ${seller.phone}</div>
+      <head>
+        <meta charset="utf-8">
+        <title>${title} ${num}</title>
+        <style>${PRINT_CSS}</style>
+      </head>
+      <body>
+        <div class="page">
+          <div class="row">
+            <div>
+              <h2>${seller.name}</h2>
+              <div class="muted">NIF: ${seller.nif}</div>
+              <div class="muted">${addrSeller}</div>
+              <div class="muted">${seller.email} · ${seller.phone}</div>
+            </div>
+            <div style="text-align:right">
+              <h1>${title}</h1>
+              <div>Número: <b>${num}</b></div>
+              <div>Fecha: <b>${fmtDate(doc.date)}</b></div>
+            </div>
           </div>
-          <div style="text-align:right">
-            <h1>${title}</h1>
-            <div>Número: <b>${num}</b></div>
-            <div>Fecha: <b>${fmtDate(doc.date)}</b></div>
+
+          <div class="row">
+            <div>
+              <div><b>Cliente</b></div>
+              <div>${c?.name || ""}</div>
+              <div class="muted">NIF: ${c?.nif || ""}</div>
+              <div class="muted">${addrBuyer}</div>
+            </div>
           </div>
-        </div>
 
-        <div class="row">
-          <div>
-            <div><b>Cliente</b></div>
-            <div>${c?.name || ""}</div>
-            <div class="muted">NIF: ${c?.nif || ""}</div>
-            <div class="muted">${addrBuyer}</div>
+          ${deliveryBlock}
+
+          <table style="margin-top:12pt">
+            ${COLGROUP}
+            <thead>
+              <tr>
+                <th>Descripción</th>
+                <th class="num">Ud.</th>
+                <th class="num">Precio</th>
+                <th class="num">Dto</th>
+                <th class="num">Tipo</th>
+                <th class="num">Importe</th>
+              </tr>
+            </thead>
+            <tbody>${linesHTML || `<tr><td colspan="6" class="muted">Sin líneas</td></tr>`}</tbody>
+          </table>
+
+          <div class="tot">
+            <div>Base imponible: <b>${fmtMoney(t.neto)}</b></div>
+            <div>IVA: <b>${fmtMoney(t.totaliva)}</b></div>
+            ${t.totalre>0?`<div>Recargo de equivalencia: <b>${fmtMoney(t.totalre)}</b></div>`:""}
+            ${t.totalirpf!==0?`<div>IRPF: <b>${fmtMoney(t.totalirpf)}</b></div>`:""}
+            <div style="margin-top:8pt">TOTAL: <b>${fmtMoney(t.total)}</b></div>
           </div>
+          <div style="clear:both"></div>
+
+          ${legalNote}
         </div>
-
-        ${deliveryBlock}
-
-        <table style="margin-top:12pt">
-          <thead>
-            <tr><th>Descripción</th><th>Ud.</th><th>Precio</th><th>Dto</th><th>Tipo</th><th>Importe</th></tr>
-          </thead>
-          <tbody>${linesHTML}</tbody>
-        </table>
-
-        <div class="tot">
-          <div>Base imponible: <b>${fmtMoney(t.neto)}</b></div>
-          <div>IVA: <b>${fmtMoney(t.totaliva)}</b></div>
-          ${t.totalre>0?`<div>Recargo de equivalencia: <b>${fmtMoney(t.totalre)}</b></div>`:""}
-          ${t.totalirpf!==0?`<div>IRPF: <b>${fmtMoney(t.totalirpf)}</b></div>`:""}
-          <div style="margin-top:8pt">TOTAL: <b>${fmtMoney(t.total)}</b></div>
-        </div>
-        <div style="clear:both"></div>
-
-        ${legalNote}
-      </div>
-    </body>
+      </body>
     </html>`;
   }
+
   const printAlbaran = (a) => {
     const c = customerById(a.customerId);
     const title = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}`;
