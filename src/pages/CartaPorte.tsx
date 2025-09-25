@@ -482,53 +482,154 @@ function CPForm({ draft, setDraft }) {
 }
 
 /** Impresión CP */
-export function renderCPHTML(cp) {
-  const css = `
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;padding:24px}
-  h1{font-size:20px;margin:0 0 8px}
-  table{width:100%;border-collapse:collapse}
-  td{border:1px solid #000;padding:6px;vertical-align:top}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .muted{font-size:12px;color:#444}
-  .title{font-weight:700}
+export function renderCPHTML(cp: any) {
+  // CSS de impresión robusto (A4 vertical). Cambia a Letter o landscape más abajo si lo necesitas.
+  const PRINT_CSS = `
+    @page { size: A4; margin: 0; }     /* Para US Letter: size: Letter; */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
+      font-size: 11pt; color: #111;
+    }
+    .page {
+      width: 210mm; min-height: 297mm; margin: 0 auto; padding: 14mm; background: #fff;
+    }
+    h1{ font-size:16pt; margin:0 0 8pt }
+    h2{ font-size:12pt; margin:0 }
+    .muted{ color:#666; font-size:9pt }
+    .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
+    .col{ min-width: 45%; }
+    .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
+    table{ width:100%; border-collapse: collapse; table-layout: fixed; }
+    th,td{ border-bottom:1px solid #ddd; padding:6pt; text-align:left; vertical-align:top; word-break: break-word; }
+    th.num, td.num { text-align:right; }
+    @media print { .page { box-shadow:none } }
   `;
-  const box = (title, content) => `<td><div class="title">${title}</div><div class="muted">${content || "&nbsp;"}</div></td>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Carta de Porte</title><style>${css}</style></head><body>
-    <h1>CARTA DE PORTE NACIONAL</h1>
-    <div class="muted">Documento de control de envíos de transporte público de mercancías (Orden FOM/2861/2012)</div>
-    <table>
-      <tr>
-        ${box("1 Remitente / Cargador contractual", `${cp.remitente?.name || ""} – ${cp.remitente?.nif || ""}<br>${cp.remitente?.address || ""}<br><i>Cargador contractual:</i> ${cp.cargadorContractual?.name || ""}`)}
-        ${box("Operador de transporte", cp.operador?.name || "")}
-      </tr>
-      <tr>
-        ${box("2 Consignatario", `${cp.consignatario?.name || ""} – ${cp.consignatario?.nif || ""}<br>${cp.consignatario?.address || ""}`)}
-        ${box("16 Porteador", cp.porteador?.name || "")}
-      </tr>
-      <tr>
-        ${box("3 Lugar de entrega", cp.lugarEntrega)}
-        ${box("Vehículo", cp.vehiculo)}
-      </tr>
-      <tr>
-        ${box("4 Lugar y fecha de carga", cp.lugarFechaCarga)}
-        ${box("17 Porteadores sucesivos", cp.porteadoresSucesivos)}
-      </tr>
-      <tr>
-        ${box("5 Documentos anexos", cp.documentosAnexos)} 
-        ${box("18 Reservas y observaciones del porteador", cp.reservas)}
-      </tr>
-      <tr>
-        ${box("6 Marcas y números", cp.marcasNumeros)}
-        ${box("7 Número de bultos", cp.numBultos)}
-        ${box("8 Clase de embalaje", cp.claseEmbalaje)}
-        ${box("9 Naturaleza de la mercancía", cp.naturalezaMercancia)}
-        ${box("10 Nº Estadístico", cp.numEstadistico)}
-        ${box("11 Peso bruto (kg)", cp.pesoBrutoKg)}
-        ${box("12 Volumen (m³)", cp.volumenM3)}
-      </tr>
-    </table>
-    <p class="muted">Fecha: ${fmtDate(cp.date)} — Nº: ${cp.numero || "-"}</p>
-  </body></html>`;
+
+  // Helpers seguros
+  const val = (x: any, fallback = "") => (x ?? fallback);
+  const dateSafe = (d: any) => {
+    // admite cp.fecha o cp.date
+    try { return fmtDate(d); } catch { return ""; }
+  };
+
+  // Campos típicos en una Carta de Porte (usa los que tengas en tu modelo)
+  const numero = val(cp.numero, "");
+  const fecha = val(cp.fecha ?? cp.date, "");
+  const remitente = val(cp.remitente, "");            // tu empresa o quien expide
+  const remitenteNif = val(cp.remitenteNif, "");
+  const remitenteDir = val(cp.remitenteDir, "");
+
+  const consignatario = val(cp.consignatario, "");
+  const consignatarioNif = val(cp.consignatarioNif, "");
+  const consignatarioDir = val(cp.consignatarioDir, "");
+
+  const origen = val(cp.origen, "");
+  const destino = val(cp.destino, "");
+  const transportista = val(cp.transportista, "");
+  const matricula = val(cp.matricula, "");
+  const observaciones = val(cp.observaciones, "");
+
+  // Líneas/mercancías
+  const linesHTML = (Array.isArray(cp.lines) ? cp.lines : []).map((l: any) => {
+    const prod = val(l.producto ?? l.name, "");
+    const desc = val(l.descripcion ?? l.desc, "");
+    const bultos = val(l.bultos ?? l.ud ?? l.qty, "");
+    const peso = val(l.peso, "");
+    const volumen = val(l.volumen, "");
+    return `<tr>
+      <td>${prod}</td>
+      <td>${desc}</td>
+      <td class="num">${bultos}</td>
+      <td class="num">${peso}</td>
+      <td class="num">${volumen}</td>
+    </tr>`;
+  }).join("");
+
+  return `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <title>CARTA DE PORTE ${numero || ""}</title>
+      <style>${PRINT_CSS}</style>
+    </head>
+    <body>
+      <div class="page">
+        <div class="row">
+          <div><h1>CARTA DE PORTE</h1></div>
+          <div style="text-align:right">
+            ${numero ? `<div>Número: <b>${numero}</b></div>` : ""}
+            ${fecha ? `<div>Fecha: <b>${dateSafe(fecha)}</b></div>` : ""}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <h2>Remitente</h2>
+            ${remitente ? `<div>${remitente}</div>` : ""}
+            ${remitenteNif ? `<div class="muted">NIF: ${remitenteNif}</div>` : ""}
+            ${remitenteDir ? `<div class="muted">${remitenteDir}</div>` : ""}
+          </div>
+          <div class="col" style="text-align:right">
+            <h2>Consignatario</h2>
+            ${consignatario ? `<div>${consignatario}</div>` : ""}
+            ${consignatarioNif ? `<div class="muted">NIF: ${consignatarioNif}</div>` : ""}
+            ${consignatarioDir ? `<div class="muted">${consignatarioDir}</div>` : ""}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="box">
+              <div><b>Origen</b></div>
+              <div>${origen}</div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="box">
+              <div><b>Destino</b></div>
+              <div>${destino}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="box">
+              <div><b>Transportista</b></div>
+              <div>${transportista}</div>
+            </div>
+          </div>
+          <div class="col" style="text-align:right">
+            <div class="box">
+              <div><b>Matrícula</b></div>
+              <div>${matricula}</div>
+            </div>
+          </div>
+        </div>
+
+        <table style="margin-top:12pt">
+          <thead>
+            <tr>
+              <th style="width:26%">Producto</th>
+              <th>Descripción</th>
+              <th class="num" style="width:12%">Bultos</th>
+              <th class="num" style="width:14%">Peso</th>
+              <th class="num" style="width:14%">Volumen</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linesHTML || `<tr><td colspan="5" class="muted">Sin líneas</td></tr>`}
+          </tbody>
+        </table>
+
+        ${observaciones ? `<div class="box" style="margin-top:12pt"><b>Observaciones</b><div>${observaciones}</div></div>` : ""}
+
+        <div class="muted" style="margin-top:16pt">Documento de transporte.</div>
+      </div>
+    </body>
+  </html>`;
 }
 
 function SkeletonRows({ cols, rows=6 }){
