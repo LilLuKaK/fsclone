@@ -153,11 +153,25 @@ export default function App() {
     const seller = Seller;
 
     const PRINT_CSS = `
-      @page { size: A4; margin: 0; }             /* página exacta A4; si quieres Letter: size: Letter */
+      /* Tamaño de página fijo en puntos (A4 = 595x842 pt) */
+      @page { size: A4; margin: 0; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, sans-serif; font-size: 11pt; color: #111; }
-      .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 14mm; background: #fff; }  /* margen interno real */
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
+        font-size: 11pt; color: #111;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+
+      /* Página en pt (nada de mm/px) */
+      .page {
+        width: 595pt;           /* 210 mm */
+        min-height: 842pt;      /* 297 mm */
+        margin: 0 auto;
+        padding: 40pt;          /* ~14 mm */
+        background: #fff;
+      }
+
       h1{ font-size:16pt; margin:0 0 8pt }
       h2{ font-size:12pt; margin:0 }
       table{ width:100%; border-collapse: collapse; table-layout: fixed; }
@@ -165,7 +179,7 @@ export default function App() {
       th:nth-child(1),td:nth-child(1){ text-align:left }
       .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
       .muted{ color:#666; font-size:9pt }
-      .tot{ margin-top:12pt; float:right; min-width: 60mm }
+      .tot{ margin-top:12pt; float:right; min-width: 170pt }
       .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
       @media print { .page { box-shadow:none } }
     `;

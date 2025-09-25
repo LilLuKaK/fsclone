@@ -485,15 +485,20 @@ function CPForm({ draft, setDraft }) {
 export function renderCPHTML(cp: any) {
   // CSS de impresión robusto (A4 vertical). Cambia a Letter o landscape más abajo si lo necesitas.
   const PRINT_CSS = `
-    @page { size: A4; margin: 0; }     /* Para US Letter: size: Letter; */
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
       font-size: 11pt; color: #111;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
     .page {
-      width: 210mm; min-height: 297mm; margin: 0 auto; padding: 14mm; background: #fff;
+      width: 595pt;
+      min-height: 842pt;
+      margin: 0 auto;
+      padding: 40pt;
+      background: #fff;
     }
     h1{ font-size:16pt; margin:0 0 8pt }
     h2{ font-size:12pt; margin:0 }
