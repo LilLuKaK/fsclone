@@ -664,4 +664,3 @@ function SkeletonRows({ cols, rows=6 }){
     </>
   );
 }
-
