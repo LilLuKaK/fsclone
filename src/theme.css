@@ -128,3 +128,33 @@ html,body{ background:var(--bg); -webkit-font-smoothing:antialiased; }
     height: clamp(56px, 8vw + 36px, 104px);
   }
 }
+
+.le-row{
+  display: grid;
+  grid-template-columns: 2fr .6fr .8fr .6fr .8fr 1fr auto;
+  gap: 8px;
+  align-items: start;
+}
+
+/* Campo de descripción grande */
+.le-desc{
+  min-height: 84px;         /* más alto por defecto */
+  resize: vertical;          /* que el usuario pueda expandir si quiere */
+  line-height: 1.35;
+}
+
+/* Inputs "pequeños" y compactos para cifras */
+.le-sm{
+  height: 34px;              /* compactos pero usables en desktop */
+  padding: 6px 8px;
+}
+
+/* En pantallas estrechas: apila en dos columnas y da más altura a desc */
+@media (max-width: 640px){
+  .le-row{
+    grid-template-columns: 1fr 1fr;
+  }
+  .le-desc{
+    min-height: 110px;
+  }
+}

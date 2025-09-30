@@ -17,7 +17,8 @@ export default function LinesEditor({
   onSaveProduct,
 }) {
   const [quickOpen, setQuickOpen] = useState(false);
-  const [quickDraft, setQuickDraft] = useState(null); // {ref,name,desc,price,vat}
+  const [quickDraft, setQuickDraft] = useState(null);
+  const [quickIdx, setQuickIdx] = useState<number | null>(null);
 
   function addLine() {
     setDoc({
@@ -66,13 +67,53 @@ export default function LinesEditor({
     setDoc({ ...doc, lines });
   }
 
-  function openQuickCreateFromLine(l) {
+  function openQuickCreateFromLine(l: any, idx?: number) {
+    // Guarda el índice de la línea para poder fijar productId tras crear
+    setQuickIdx(typeof idx === "number" ? idx : null);
+
+    const name = (l.name || "").trim();
+    const desc = (l.desc || "").trim();
+    const price = Number(l.price || 0);
+    const vat = l.vat || "iva21";
+    const ref = (l.productId || "").trim(); // si ya venía de un producto
+    const id = ref || `P${Date.now()}`;
+
+    // Si ya tenemos nombre (requisito mínimo), guardamos DIRECTO sin pedir nada
+    if (name) {
+      const prod = { id, ref, name, desc, price, vat };
+      onSaveProduct?.(prod); // el padre persiste (Drive)
+
+      // Enlaza la línea con el productId creado/actualizado (calidad de vida)
+      if (typeof setDoc === "function" && typeof idx === "number") {
+        setDoc((prev: any) => {
+          const lines = Array.isArray(prev?.lines) ? [...prev.lines] : [];
+          if (lines[idx]) {
+            lines[idx] = {
+              ...lines[idx],
+              productId: id,
+              // sincroniza con lo que acabas de guardar (opcional)
+              name,
+              desc,
+              price,
+              vat,
+            };
+          }
+          return { ...prev, lines };
+        });
+      }
+      // No abrimos modal: ya se guardó
+      setQuickOpen(false);
+      setQuickDraft(null);
+      return;
+    }
+
+    // Si NO hay nombre, abrimos el mini-modal pre-rellenado para completarlo
     setQuickDraft({
-      ref: l.productId || "",
-      name: l.name || "",
-      desc: l.desc || "",
-      price: l.price || 0,
-      vat: l.vat || "iva21",
+      ref,
+      name,     // vacío -> el usuario escribirá algo
+      desc,
+      price,
+      vat,
     });
     setQuickOpen(true);
   }
@@ -81,16 +122,41 @@ export default function LinesEditor({
     if (!onSaveProduct) return setQuickOpen(false);
     const base = (quickDraft?.name || "").trim();
     if (!base) return alert("Pon al menos un nombre para el producto.");
+
+    const id = quickDraft.ref?.trim() || `P${Date.now()}`;
     const prod = {
-      id: quickDraft.ref?.trim() || `P${Date.now()}`,
+      id,
       ref: quickDraft.ref?.trim() || "",
-      name: quickDraft.name.trim(),
-      desc: (quickDraft.desc || "").trim(), // ← guardar descripción
+      name: base,
+      desc: (quickDraft.desc || "").trim(),
       price: Number(quickDraft.price || 0),
       vat: quickDraft.vat || "iva21",
     };
+
     onSaveProduct(prod); // el padre persiste (Drive)
+
+    // Si veníamos de una línea concreta, la enlazamos con el nuevo producto
+    if (typeof setDoc === "function" && quickIdx !== null) {
+      setDoc((prev: any) => {
+        const lines = Array.isArray(prev?.lines) ? [...prev.lines] : [];
+        if (lines[quickIdx]) {
+          lines[quickIdx] = {
+            ...lines[quickIdx],
+            productId: id,
+            // sincroniza campos con el producto guardado (opcional)
+            name: prod.name,
+            desc: prod.desc,
+            price: prod.price,
+            vat: prod.vat,
+          };
+        }
+        return { ...prev, lines };
+      });
+    }
+
     setQuickOpen(false);
+    setQuickDraft(null);
+    setQuickIdx(null);
   }
 
   return (
@@ -103,7 +169,7 @@ export default function LinesEditor({
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
-      <table className="min-w-[960px] w-full text-sm">
+      <table className="w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
             <th className="p-2 text-left">Producto</th>
@@ -124,7 +190,7 @@ export default function LinesEditor({
               <td className="p-2">
                 <div className="flex items-center gap-1">
                   <select
-                    className="border rounded p-1 w-44"
+                    className="w-[60px]border rounded p-1 w-44"
                     value={l.productId || ""}
                     onChange={(e) => applyProductToLine(idx, e.target.value)}
                   >
@@ -140,7 +206,7 @@ export default function LinesEditor({
                   <button
                     title="Guardar esta línea como producto"
                     className="px-2 py-1 rounded border"
-                    onClick={() => openQuickCreateFromLine(l)}
+                    onClick={() => openQuickCreateFromLine(l, idx)}  // 👈 pasa idx
                   >
                     💾
                   </button>
@@ -150,7 +216,7 @@ export default function LinesEditor({
               {/* Nombre */}
               <td className="p-2">
                 <input
-                  className="w-full border rounded p-1"
+                  className="w-[125px] border rounded p-1"
                   placeholder="Nombre del producto/servicio"
                   value={l.name || ""}
                   onChange={(e) => update(idx, "name", e.target.value)}
@@ -172,10 +238,10 @@ export default function LinesEditor({
               <td className="p-2 text-right">
                 <input
                   type="number"
-                  className="w-20 border rounded p-1 text-right"
+                  className="w-[50px] border rounded p-1 text-right"
                   value={l.qty}
                   min={0}
-                  step="0.01"
+                  step="1"
                   onChange={(e) => update(idx, "qty", Number(e.target.value))}
                 />
               </td>
@@ -184,9 +250,9 @@ export default function LinesEditor({
               <td className="p-2 text-right">
                 <input
                   type="number"
-                  className="w-24 border rounded p-1 text-right"
+                  className="w-[50px] border rounded p-1 text-right"
                   value={l.price}
-                  step="0.01"
+                  step="0.5"
                   onChange={(e) => update(idx, "price", Number(e.target.value))}
                 />
               </td>
@@ -195,9 +261,9 @@ export default function LinesEditor({
               <td className="p-2 text-right">
                 <input
                   type="number"
-                  className="w-16 border rounded p-1 text-right"
+                  className="w-[50px] border rounded p-1 text-right"
                   value={l.dtopct || 0}
-                  step="0.01"
+                  step="0.5"
                   onChange={(e) => update(idx, "dtopct", Number(e.target.value))}
                 />
               </td>
@@ -221,7 +287,7 @@ export default function LinesEditor({
               <td className="p-2 text-right">
                 <input
                   type="number"
-                  className="w-16 border rounded p-1 text-right"
+                  className="w-[50px] border rounded p-1 text-right"
                   value={l.irpfpct || 0}
                   step="0.01"
                   onChange={(e) => update(idx, "irpfpct", Number(e.target.value))}

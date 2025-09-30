@@ -372,9 +372,27 @@ export default function FacturasPage({
 }
 
 /* ===== Subformulario cabecera Factura ===== */
-function FacHeader({ draft, setDraft, customers }) {
+function FacHeader({ draft, setDraft, customers, isDocNumberTaken, seqs, }) {
+  const taken = draft.series && draft.number != null && draft.number !== "" && isDocNumberTaken?.("factura", draft.series, draft.number, draft.id);
   return (
-    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+    <div className="grid grid-cols-2 gap-3">
+      <label>
+        <div className="text-sm text-gray-600 mb-1">Número</div>
+        <div className="flex gap-2">
+          <input className="w-28" type="number" placeholder="(auto)" value={draft.number ?? ""}
+            onChange={e=>{
+              const v = e.target.value;
+              setDraft({ ...draft, number: v === "" ? "" : Number(v) });
+            }} />
+          {typeof seqs !== "undefined" && (
+            <button type="button" className="px-3 py-1 border rounded"
+              onClick={()=> setDraft(d => ({...d, number: nextNumber(seqs, d.series, "albaran")}))}>
+              Auto
+            </button>
+          )}
+        </div>
+        {taken && <div className="text-xs text-red-600 mt-1">Ya existe un albarán con esa serie y número.</div>}
+      </label>
       <div>
         <label className="block text-gray-600">Serie</label>
         <select

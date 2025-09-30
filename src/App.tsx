@@ -388,6 +388,26 @@ export default function App() {
     return `${series || "S"}-${number ?? "SN"}`; // SN = sin número
   }
 
+  // === Detección de número ya existente (serie + número) ===
+  function isDocNumberTaken(
+    kind: "albaran" | "factura" | "cp",
+    series: string,
+    number: number | string,
+    ignoreId?: string
+  ) {
+    const list = kind === "albaran" ? albaranes : kind === "factura" ? invoices : cartaportes;
+    const num = String(number);
+    return list.some(d => d.id !== ignoreId && d.series === series && String(d.number) === num);
+  }
+
+  // Asigna número si no hay (manteniendo tu nextNumber)
+  function ensureNumber(kind: "albaran" | "factura" | "cp", draft: any) {
+    if (draft.number == null || draft.number === "") {
+      draft.number = nextNumber(seqs, draft.series, kind);
+    }
+    return draft;
+  }
+
   return (
     <div className="app-shell mx-auto max-w-7xl p-4 sm:p-5 md:p-6 space-y-5">
       {/* Modal obligatorio de conexión a Drive */}
@@ -476,6 +496,7 @@ export default function App() {
           products={products}
           onSaveProduct={upsertProduct}
           loading={loading}
+          isDocNumberTaken={isDocNumberTaken}
         />
       )}
 
@@ -492,6 +513,7 @@ export default function App() {
           products={products}
           onSaveProduct={upsertProduct}
           loading={loading}
+          isDocNumberTaken={isDocNumberTaken}
         />
       )}
 
@@ -503,6 +525,7 @@ export default function App() {
           printCP={printCP}
           emailCP={emailCP}
           loading={loading}
+          isDocNumberTaken={isDocNumberTaken}
         />
       )}
 

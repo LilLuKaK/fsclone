@@ -481,7 +481,7 @@ function CPForm({ draft, setDraft }) {
   );
 }
 
-/** Impresión CP */
+/** Impresión robusta CP (A4 en puntos, maquetación 2 columnas) */
 export function renderCPHTML(cp: any) {
   const PRINT_CSS = `
     @page { size: A4; margin: 0; }
@@ -492,152 +492,136 @@ export function renderCPHTML(cp: any) {
       font-size: 11pt; color: #111;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-    .page {
-      width: 595pt;
-      min-height: 842pt;
-      margin: 0 auto;
-      padding: 40pt;
-      background: #fff;
-    }
-    h1{ font-size:16pt; margin:0 0 8pt }
-    h2{ font-size:12pt; margin:0 }
-    .muted{ color:#666; font-size:9pt }
-    .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
-    .col{ min-width: 45%; }
-    .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
+    .page { width: 595pt; min-height: 842pt; margin: 0 auto; padding: 40pt; background: #fff; }
 
-    table{ width:100%; border-collapse: collapse; table-layout: fixed; }
-    th,td{ border-bottom:1px solid #ddd; padding:6pt; vertical-align:top; }
-    th{ text-align:left; font-weight:600; }
-    th.num, td.num { text-align:right; font-variant-numeric: tabular-nums; }
-    @media print { .page { box-shadow:none } }
+    h1 { font-size: 16pt; margin: 0 0 6pt }
+    .muted { color:#555; font-size: 9pt }
+    .right { text-align: right }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; }
+    .box { border: 1px solid #1f2937; border-radius: 4pt; padding: 8pt; }
+    .label { font-weight: 600; margin-bottom: 4pt }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #1f2937; padding: 6pt; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
   `;
 
-  const val = (x: any, fallback = "") => (x ?? fallback);
-  const dateSafe = (d: any) => { try { return fmtDate(d); } catch { return ""; } };
-
-  const numero = val(cp.numero, "");
-  const fecha = val(cp.fecha ?? cp.date, "");
-  const remitente = val(cp.remitente, "");
-  const remitenteNif = val(cp.remitenteNif, "");
-  const remitenteDir = val(cp.remitenteDir, "");
-
-  const consignatario = val(cp.consignatario, "");
-  const consignatarioNif = val(cp.consignatarioNif, "");
-  const consignatarioDir = val(cp.consignatarioDir, "");
-
-  const origen = val(cp.origen, "");
-  const destino = val(cp.destino, "");
-  const transportista = val(cp.transportista, "");
-  const matricula = val(cp.matricula, "");
-  const observaciones = val(cp.observaciones, "");
-
-  const COLS_CP = `
-    <colgroup>
-      <col style="width:26%">
-      <col>                    <!-- Descripción ocupa el resto -->
-      <col style="width:12%">
-      <col style="width:14%">
-      <col style="width:14%">
-    </colgroup>
-  `;
-
-  const linesHTML = (Array.isArray(cp.lines) ? cp.lines : []).map((l: any) => {
-    const prod = val(l.producto ?? l.name, "");
-    const desc = val(l.descripcion ?? l.desc, "");
-    const bultos = val(l.bultos ?? l.ud ?? l.qty, "");
-    const peso = val(l.peso, "");
-    const volumen = val(l.volumen, "");
-    return `<tr>
-      <td>${prod}</td>
-      <td>${desc}</td>
-      <td class="num">${bultos}</td>
-      <td class="num">${peso}</td>
-      <td class="num">${volumen}</td>
-    </tr>`;
-  }).join("");
+  const s = (v: any) => (v ?? ""); // safe
 
   return `<!doctype html>
   <html>
     <head>
-      <meta charset="utf-8">
-      <title>CARTA DE PORTE ${numero || ""}</title>
+      <meta charset="utf-8" />
+      <title>Carta de Porte ${s(cp.numero)}</title>
       <style>${PRINT_CSS}</style>
     </head>
     <body>
       <div class="page">
-        <div class="row">
-          <div><h1>CARTA DE PORTE</h1></div>
-          <div style="text-align:right">
-            ${numero ? `<div>Número: <b>${numero}</b></div>` : ""}
-            ${fecha ? `<div>Fecha: <b>${dateSafe(fecha)}</b></div>` : ""}
+        <!-- Cabecera -->
+        <div style="display:flex;justify-content:space-between;gap:12pt;align-items:flex-start;">
+          <div>
+            <h1>CARTA DE PORTE NACIONAL</h1>
+            <div class="muted">Documento de control de envíos de transporte público de mercancías (Orden FOM/2861/2012)</div>
+          </div>
+          <div class="right muted">
+            <div><b>Fecha:</b> ${s(fmtDate(cp.date))}</div>
+            <div><b>Nº:</b> ${s(cp.numero) || "-"}</div>
           </div>
         </div>
 
-        <div class="row">
-          <div class="col">
-            <h2>Remitente</h2>
-            ${remitente ? `<div>${remitente}</div>` : ""}
-            ${remitenteNif ? `<div class="muted">NIF: ${remitenteNif}</div>` : ""}
-            ${remitenteDir ? `<div class="muted">${remitenteDir}</div>` : ""}
+        <!-- 1 / Operador -->
+        <div class="grid2" style="margin-top:10pt">
+          <div class="box">
+            <div class="label">1 · Remitente / Cargador contractual</div>
+            <div><b>${s(cp.remitente?.name)}</b> — ${s(cp.remitente?.nif)}</div>
+            <div class="muted">${s(cp.remitente?.address)}</div>
+            ${cp.cargadorContractual?.name ? `<div class="muted"><i>Cargador contractual:</i> ${s(cp.cargadorContractual?.name)}</div>` : ""}
           </div>
-          <div class="col" style="text-align:right">
-            <h2>Consignatario</h2>
-            ${consignatario ? `<div>${consignatario}</div>` : ""}
-            ${consignatarioNif ? `<div class="muted">NIF: ${consignatarioNif}</div>` : ""}
-            ${consignatarioDir ? `<div class="muted">${consignatarioDir}</div>` : ""}
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col">
-            <div class="box">
-              <div><b>Origen</b></div>
-              <div>${origen}</div>
-            </div>
-          </div>
-          <div class="col">
-            <div class="box">
-              <div><b>Destino</b></div>
-              <div>${destino}</div>
-            </div>
+          <div class="box">
+            <div class="label">Operador de transporte</div>
+            <div><b>${s(cp.operador?.name)}</b></div>
+            <div class="muted">${s(cp.operador?.cif)} ${s(cp.operador?.address)}</div>
           </div>
         </div>
 
-        <div class="row">
-          <div class="col">
-            <div class="box">
-              <div><b>Transportista</b></div>
-              <div>${transportista}</div>
-            </div>
+        <!-- 2 / 16 -->
+        <div class="grid2" style="margin-top:8pt">
+          <div class="box">
+            <div class="label">2 · Consignatario</div>
+            <div><b>${s(cp.consignatario?.name)}</b> — ${s(cp.consignatario?.nif)}</div>
+            <div class="muted">${s(cp.consignatario?.address)}</div>
           </div>
-          <div class="col" style="text-align:right">
-            <div class="box">
-              <div><b>Matrícula</b></div>
-              <div>${matricula}</div>
-            </div>
+          <div class="box">
+            <div class="label">16 · Porteador</div>
+            <div><b>${s(cp.porteador?.name)}</b></div>
+            <div class="muted">${s(cp.porteador?.cif)} ${s(cp.porteador?.address)}</div>
           </div>
         </div>
 
-        <table style="margin-top:12pt">
-          ${COLS_CP}
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Descripción</th>
-              <th class="num">Bultos</th>
-              <th class="num">Peso</th>
-              <th class="num">Volumen</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linesHTML || `<tr><td colspan="5" class="muted">Sin líneas</td></tr>`}
-          </tbody>
-        </table>
+        <!-- 3 / Vehículo -->
+        <div class="grid2" style="margin-top:8pt">
+          <div class="box">
+            <div class="label">3 · Lugar de entrega</div>
+            <div>${s(cp.lugarEntrega)}</div>
+          </div>
+          <div class="box">
+            <div class="label">Vehículo</div>
+            <div>${s(cp.vehiculo)}</div>
+          </div>
+        </div>
 
-        ${observaciones ? `<div class="box" style="margin-top:12pt"><b>Observaciones</b><div>${observaciones}</div></div>` : ""}
+        <!-- 4 / 17 -->
+        <div class="grid2" style="margin-top:8pt">
+          <div class="box">
+            <div class="label">4 · Lugar y fecha de carga</div>
+            <div>${s(cp.lugarFechaCarga)}</div>
+          </div>
+          <div class="box">
+            <div class="label">17 · Porteadores sucesivos</div>
+            <div>${s(cp.porteadoresSucesivos)}</div>
+          </div>
+        </div>
 
-        <div class="muted" style="margin-top:16pt">Documento de transporte.</div>
+        <!-- 5 / 18 -->
+        <div class="grid2" style="margin-top:8pt">
+          <div class="box">
+            <div class="label">5 · Documentos anexos</div>
+            <div>${s(cp.documentosAnexos)}</div>
+          </div>
+          <div class="box">
+            <div class="label">18 · Reservas y observaciones del porteador</div>
+            <div>${s(cp.reservas)}</div>
+          </div>
+        </div>
+
+        <!-- 6–12 · Mercancía -->
+        <div style="margin-top:10pt">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:22%">6 · Marcas y números</th>
+                <th style="width:12%">7 · Nº bultos</th>
+                <th style="width:16%">8 · Clase embalaje</th>
+                <th>9 · Naturaleza de la mercancía</th>
+                <th style="width:16%">10 · Nº Estadístico</th>
+                <th style="width:14%">11 · Peso bruto (kg)</th>
+                <th style="width:14%">12 · Volumen (m³)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${s(cp.marcasNumeros)}</td>
+                <td>${s(cp.numBultos)}</td>
+                <td>${s(cp.claseEmbalaje)}</td>
+                <td>${s(cp.naturalezaMercancia)}</td>
+                <td>${s(cp.numEstadistico)}</td>
+                <td>${s(cp.pesoBrutoKg)}</td>
+                <td>${s(cp.volumenM3)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </body>
   </html>`;
