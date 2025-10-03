@@ -1,7 +1,5 @@
 // @ts-nocheck
 /* Utilidades compartidas, catálogos y cálculos */
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 
 export const TZ = "Europe/Madrid";
 
@@ -345,59 +343,167 @@ export async function sendEmailWithPDF({
   return await resp.json().catch(()=> ({}));
 }
 
-/** Convierte ArrayBuffer a base64 */
-export function arrayBufferToBase64(buf: ArrayBuffer): string {
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
+/** Abre un compositor de email con el documento renderizado y lo envía DESDE esa ventana */
+export function openEmailComposerWithDoc(
+  htmlDoc: string,
+  meta: {
+    title?: string;
+    to?: string;
+    subject: string;
+    message: string;
+    filename: string;
+  }
+) {
+  // --- 1) Parsear el HTML: coger <style> y <body> para no anidarlo mal ---
+  const pickParts = (full: string) => {
+    const styles = Array.from(full.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi))
+      .map(m => m[1]).join("\n");
+    const inBody = full.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const body = inBody ? inBody[1] : full;
+    return { styles, body };
+  };
+  const { styles, body } = pickParts(htmlDoc);
 
-/** Genera un PDF A4 desde un HTML (mismo que usas para imprimir) en la propia ventana. */
-export async function makePdfFromHtml(html: string): Promise<{ blob: Blob; base64: string; url: string }> {
-  // 1) Montar fuera de pantalla
-  const holder = document.createElement("div");
-  holder.style.position = "fixed";
-  holder.style.left = "-99999px";
-  holder.style.top = "0";
-  holder.style.width = "900px";
-  holder.style.background = "#fff";
-  holder.innerHTML = html;
-  document.body.appendChild(holder);
+  // --- 2) Exponer en la ventana principal la función de envío (reutiliza tu sendEmailWithPDF) ---
+  // @ts-ignore
+  (window as any).__FSCLONE_SEND_EMAIL__ = async (payload: any) => {
+    // esta función la definiremos en App.tsx antes de llamar al compositor
+    throw new Error("__FSCLONE_SEND_EMAIL__ no está enlazado en App.tsx");
+  };
 
-  // 2) Asegurar .page A4 en pt si no viene (debería venir)
-  let page = holder.querySelector(".page") as HTMLElement | null;
-  if (!page) {
-    page = document.createElement("div");
-    page.className = "page";
-    page.style.width = "595pt";
-    page.style.minHeight = "842pt";
-    page.style.padding = "40pt";
-    page.style.background = "#fff";
-    while (holder.firstChild) page.appendChild(holder.firstChild);
-    holder.appendChild(page);
+  // --- 3) Abrir la ventana del compositor ---
+  const w = window.open("", "_blank");
+  if (!w) {
+    alert("El navegador bloqueó la ventana emergente. Permite pop-ups para continuar.");
+    return;
   }
 
-  // 3) Esperar fuentes e imágenes
-  try { if ((document as any).fonts?.ready) await (document as any).fonts.ready; } catch {}
-  const imgs = Array.from(page.querySelectorAll("img"));
-  await Promise.all(imgs.map(img => new Promise<void>(res => img.complete ? res() : (img.onload = img.onerror = () => res()))));
-  await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+  const BASE_CSS = `
+    html,body{margin:0;padding:0;background:#f6f7f9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu}
+    *{box-sizing:border-box}
+    .wrap{max-width: 980px; margin: 0 auto; padding: 16px 12px 40px}
+    .toolbar{position:sticky;top:0;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+    .toolbar .field{display:flex;flex-direction:column;gap:6px}
+    .toolbar input,.toolbar textarea{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px}
+    .toolbar textarea{min-height:64px;resize:vertical}
+    .actions{display:flex;gap:8px;align-items:center}
+    .btn{padding:8px 12px;border-radius:8px;border:1px solid #d1d5db;background:#fff;cursor:pointer}
+    .btn.primary{background:#2563eb;color:#fff;border-color:#1d4ed8}
+    .status{font-size:12px;color:#555}
+    .docbox{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;overflow:auto}
+    .page{width:595pt;min-height:842pt;margin:0 auto;background:#fff;padding:40pt}
+    /* Estilos del documento original: */
+    ${styles}
+  `;
 
-  // 4) Capturar y crear PDF
-  const canvas = await html2canvas(page, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-  const dataUrl = canvas.toDataURL("image/png");
+  const TITLE = (meta.title || meta.filename.replace(/\.pdf$/,"")).replace(/</g,"&lt;");
 
-  const pdf = new jsPDF({ unit: "pt", format: "a4" });
-  pdf.addImage(dataUrl, "PNG", 0, 0, 595, 842);
+  // --- 4) HTML del compositor (carga html2canvas/jspdf por CDN) ---
+  const HTML = `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8"/>
+      <title>${TITLE}</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+      <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+      <style>${BASE_CSS}</style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="toolbar">
+          <div class="field">
+            <label>Para</label>
+            <input id="f-to" type="email" placeholder="cliente@correo.com" value="${(meta.to||"").replace(/"/g,"&quot;")}" />
+          </div>
+          <div class="field">
+            <label>Asunto</label>
+            <input id="f-subj" type="text" value="${(meta.subject||"").replace(/"/g,"&quot;")}" />
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label>Mensaje</label>
+            <textarea id="f-msg">${(meta.message||"").replace(/</g,"&lt;")}</textarea>
+          </div>
+          <div class="actions" style="grid-column:1/-1;justify-content:flex-end">
+            <span id="status" class="status"></span>
+            <button id="btn-send" class="btn primary">Enviar email</button>
+          </div>
+        </div>
 
-  const blob = pdf.output("blob");
-  const arr = await (blob as Blob).arrayBuffer();
-  const base64 = arrayBufferToBase64(arr);
-  const url = URL.createObjectURL(blob);
+        <div class="docbox">
+          <!-- Documento -->
+          <div id="doc-root">${body}</div>
+        </div>
+      </div>
 
-  // 5) Limpieza
-  document.body.removeChild(holder);
+      <script>
+      (function(){
+        const $ = (sel)=>document.querySelector(sel);
+        const btn = $('#btn-send');
+        const status = $('#status');
 
-  return { blob, base64, url };
+        async function generatePdfBase64(){
+          // Garantizar que exista .page; si no, envolvemos
+          let page = document.querySelector('.page');
+          if(!page){
+            const root = document.getElementById('doc-root');
+            page = document.createElement('div');
+            page.className = 'page';
+            while(root.firstChild) page.appendChild(root.firstChild);
+            root.appendChild(page);
+          }
+          // Esperar fuentes e imágenes
+          try{ if(document.fonts && document.fonts.ready) await document.fonts.ready; }catch(_){}
+          const imgs = Array.from(page.querySelectorAll('img'));
+          await Promise.all(imgs.map(img=>new Promise(r=>{ if(img.complete) r(); else img.onload = img.onerror = ()=>r(); })));
+          await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+          const canvas = await html2canvas(page, { scale: 2, backgroundColor:'#fff', useCORS:true });
+          const dataUrl = canvas.toDataURL('image/png');
+          const jspdf = window.jspdf;
+          const pdf = new jspdf.jsPDF({ unit:'pt', format:'a4' });
+          pdf.addImage(dataUrl, 'PNG', 0, 0, 595, 842);
+          const blob = pdf.output('blob');
+          const arr = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arr);
+          let bin = ''; for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+          return btoa(bin);
+        }
+
+        btn.addEventListener('click', async ()=>{
+          try{
+            btn.disabled = true; status.textContent = 'Generando PDF…';
+            const pdfBase64 = await generatePdfBase64();
+            status.textContent = 'Enviando…';
+
+            const payload = {
+              to: $('#f-to').value.trim(),
+              subject: $('#f-subj').value.trim(),
+              message: $('#f-msg').value,
+              filename: ${JSON.stringify(meta.filename)},
+              pdfBase64,
+            };
+
+            if(!payload.to) { status.textContent = 'Pon un destinatario'; btn.disabled=false; return; }
+
+            // Llama al sender expuesto en la ventana principal
+            try{
+              window.opener && window.opener.__FSCLONE_SEND_EMAIL__ && await window.opener.__FSCLONE_SEND_EMAIL__(payload);
+            }catch(e){
+              throw e || new Error('No se pudo invocar el envío desde la ventana principal.');
+            }
+
+            status.textContent = '✅ Enviado';
+          }catch(e){
+            console.error(e);
+            status.textContent = '❌ ' + (e && (e.message||e));
+            btn.disabled = false;
+          }
+        }, { passive: true });
+      })();
+      </script>
+    </body>
+  </html>`;
+
+  w.document.open(); w.document.write(HTML); w.document.close();
 }
