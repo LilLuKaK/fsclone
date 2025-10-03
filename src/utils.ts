@@ -343,18 +343,35 @@ export async function sendEmailWithPDF({
   return await resp.json().catch(()=> ({}));
 }
 
-/** Abre una pestaña, renderiza el HTML a PDF A4 y devuelve el base64 a este window vía postMessage. */
 export function emailViaPopup(html: string, opts: {
   title?: string,
-  onPdf: (pdfBase64: string) => Promise<void>,  // qué hacer con el PDF (enviar email)
+  onPdf: (pdfBase64: string) => Promise<void>,
 }) : Promise<void> {
+  // 1) Parsear HTML: extraer <style> y <body>
+  const extract = (full: string) => {
+    const styles = Array.from(full.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi))
+      .map(m => m[1]).join("\n");
+    const mBody = full.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const body = mBody ? mBody[1] : full;
+    return { styles, body };
+  };
+  const { styles, body } = extract(html);
+
+  // 2) Abrir popup
   const w = window.open("", "_blank");
   if (!w) {
-    alert("Tu navegador ha bloqueado la ventana emergente. Permite pop-ups para continuar.");
+    alert("Tu navegador bloqueó la ventana emergente. Permite pop-ups para continuar.");
     return Promise.resolve();
   }
 
-  // NOTA: usamos las libs por CDN dentro de la pestaña (no necesitas instalarlas)
+  // 3) CSS base A4 en puntos + estilos extraídos
+  const BASE_CSS = `
+    html,body{margin:0;padding:0;background:#fff}
+    *{box-sizing:border-box}
+    .page{width:595pt;min-height:842pt;margin:0 auto;padding:40pt;background:#fff}
+  `;
+
+  // 4) HTML del popup (usamos libs por CDN solo en esta pestaña)
   const WRAP = `<!doctype html>
   <html>
     <head>
@@ -363,18 +380,32 @@ export function emailViaPopup(html: string, opts: {
       <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
       <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-      <style>html,body{background:#fff;}</style>
+      <style>${BASE_CSS}\n${styles}</style>
     </head>
-    <body>
-      ${html}
+    <body>${body}
       <script>
       (async function(){
         try{
-          // Espera a que el layout se estabilice
-          await new Promise(r=>setTimeout(r,100));
-          var page = document.querySelector('.page') || document.body;
+          // Si no hay .page, creamos una y metemos todo dentro
+          var page = document.querySelector('.page');
+          if(!page){
+            page = document.createElement('div');
+            page.className = 'page';
+            while(document.body.firstChild){
+              page.appendChild(document.body.firstChild);
+            }
+            document.body.appendChild(page);
+          }
 
-          // A4: 595x842 pt
+          // Esperar fuentes e imágenes
+          try{ if(document.fonts && document.fonts.ready) { await document.fonts.ready; } }catch(_){}
+          var imgs = Array.from(page.querySelectorAll('img'));
+          await Promise.all(imgs.map(function(img){
+            return new Promise(function(res){ if(img.complete) res(); else img.onload = img.onerror = function(){ res(); }; });
+          }));
+          await new Promise(function(res){ requestAnimationFrame(function(){ requestAnimationFrame(res); }); });
+
+          // Captura → PDF A4
           var canvas = await html2canvas(page, { scale: 2, backgroundColor:'#fff', useCORS:true });
           var dataUrl = canvas.toDataURL('image/png');
 
@@ -384,16 +415,16 @@ export function emailViaPopup(html: string, opts: {
 
           var blob = pdf.output('blob');
           var arr = await blob.arrayBuffer();
-          var bytes = new Uint8Array(arr);
-          var bin = '';
-          for (var i=0; i<bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          var bytes = new Uint8Array(arr); var bin = '';
+          for (var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
           var pdfBase64 = btoa(bin);
 
           window.opener.postMessage({ __FSCLONE_PDF_READY__: true, pdfBase64: pdfBase64 }, '*');
         }catch(e){
           window.opener.postMessage({ __FSCLONE_PDF_ERROR__: String(e && (e.message||e)) }, '*');
         }
-        setTimeout(function(){ try{ window.close(); }catch(_){} }, 200);
+        // deja respirar 300ms y cierra
+        setTimeout(function(){ try{ window.close(); }catch(_){} }, 300);
       })();
       </script>
     </body>
@@ -401,27 +432,27 @@ export function emailViaPopup(html: string, opts: {
 
   w.document.open(); w.document.write(WRAP); w.document.close();
 
+  // 5) Esperar respuesta del popup
   return new Promise<void>((resolve, reject) => {
+    let done = false;
     const onMsg = async (ev: MessageEvent) => {
       if (!ev || !ev.data) return;
       if (ev.data.__FSCLONE_PDF_READY__) {
+        if (done) return; done = true;
         window.removeEventListener('message', onMsg);
         try { await opts.onPdf(ev.data.pdfBase64); resolve(); }
         catch(e){ reject(e); }
-        return;
-      }
-      if (ev.data.__FSCLONE_PDF_ERROR__) {
+      } else if (ev.data.__FSCLONE_PDF_ERROR__) {
+        if (done) return; done = true;
         window.removeEventListener('message', onMsg);
         reject(new Error(ev.data.__FSCLONE_PDF_ERROR__));
       }
     };
-    const timeout = setTimeout(()=>{
+    const t = setTimeout(()=>{
+      if (done) return;
       window.removeEventListener('message', onMsg);
-      reject(new Error("Tiempo de espera generando el PDF."));
-    }, 25000);
-    window.addEventListener('message', (ev) => {
-      clearTimeout(timeout);
-      onMsg(ev);
-    });
+      reject(new Error("Timeout generando PDF en popup."));
+    }, 30000);
+    window.addEventListener('message', (ev) => { clearTimeout(t); onMsg(ev); });
   });
 }
