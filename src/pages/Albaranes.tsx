@@ -16,7 +16,8 @@ export default function AlbaranesPage({
   emailAlbaran,
   products,
   onSaveProduct,
-  loading
+  loading,
+  onFacturar,
 }) {
   const [filters, setFilters] = useState({ q: "", serie: "", from: "", to: "" });
   const [createOpen, setCreateOpen] = useState(false);
@@ -184,6 +185,13 @@ export default function AlbaranesPage({
                       onClick={() => emailAlbaran(a)}
                     >
                       ✉️
+                    </button>
+                    <button
+                      className="px-2 py-1 rounded border"
+                      title="Facturar este albarán"
+                      onClick={() => onFacturar && onFacturar(a)}
+                    >
+                      Facturar
                     </button>
                   </td>
                 </tr>

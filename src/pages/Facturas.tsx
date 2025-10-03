@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SERIES, fmtDate, fmtMoney, computeTotals } from "../utils";
 import Dialog from "../components/Dialog";
 import LinesEditor from "../components/LinesEditor";
@@ -16,7 +16,9 @@ export default function FacturasPage({
   emailFactura,
   products,
   onSaveProduct,
-  loading
+  loading,
+  prefillDraft,
+  consumePrefill,
 }) {
   const [filters, setFilters] = useState({ q: "", serie: "", from: "", to: "" });
   const [createOpen, setCreateOpen] = useState(false);
@@ -101,6 +103,19 @@ export default function FacturasPage({
     setInvoices((prev) => prev.map((f) => (f.id === draft.id ? draft : f)));
     setEditOpen(false);
   }
+
+  useEffect(() => {
+    if (!prefillDraft) return;
+
+    setFacDraft((prev: any) => ({
+      ...(prev || newFacturaDraft()),
+      ...prefillDraft,
+      number: prefillDraft.number ?? "",
+    }));
+
+    setCreateFacOpen(true);
+    consumePrefill?.();
+  }, [prefillDraft]);
 
   return (
     <section className="space-y-3">
@@ -386,12 +401,12 @@ function FacHeader({ draft, setDraft, customers, isDocNumberTaken, seqs, }) {
             }} />
           {typeof seqs !== "undefined" && (
             <button type="button" className="px-3 py-1 border rounded"
-              onClick={()=> setDraft(d => ({...d, number: nextNumber(seqs, d.series, "albaran")}))}>
+              onClick={()=> setDraft(d => ({...d, number: nextNumber(seqs, d.series, "factura")}))}>
               Auto
             </button>
           )}
         </div>
-        {taken && <div className="text-xs text-red-600 mt-1">Ya existe un albarán con esa serie y número.</div>}
+        {taken && <div className="text-xs text-red-600 mt-1">Ya existe una factura con esa serie y número.</div>}
       </label>
       <div>
         <label className="block text-gray-600">Serie</label>

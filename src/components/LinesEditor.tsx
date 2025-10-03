@@ -227,7 +227,7 @@ export default function LinesEditor({
               <td className="p-2">
                 <textarea
                   rows={2}
-                  className="w-full border rounded p-1"
+                  className="w-[300px] border rounded p-1"
                   placeholder="Descripción (ej. viajes por días)"
                   value={l.desc || ""}
                   onChange={(e) => update(idx, "desc", e.target.value)}

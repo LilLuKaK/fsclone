@@ -30,6 +30,7 @@ export default function App() {
   const [cartaportes, setCartaPortes] = useState([]);
   const [seqs, setSeqs] = useState(initialSequences());
   const [debugOpen, setDebugOpen] = useState(true);
+  const [invoiceSeed, setInvoiceSeed] = useState<any | null>(null);
 
   const [forceDriveModal, setForceDriveModal] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
@@ -408,6 +409,33 @@ export default function App() {
     return draft;
   }
 
+  function startInvoiceFromAlbaran(a: any) {
+    const seed = {
+      // cliente igual que el albarán
+      customerId: a.customerId,
+      // fecha: hoy (puedes usar a.date si prefieres)
+      date: new Date().toISOString().slice(0,10),
+      // serie: copia la del albarán (el usuario puede cambiarla en el modal)
+      series: a.series || SERIES?.[0]?.id || "",
+      // número vacío para que el guardado asigne (o el usuario ponga uno)
+      number: "",
+      // líneas: copia 1:1 los campos relevantes
+      lines: (a.lines || []).map((l: any) => ({
+        name: l.name || "",
+        desc: l.desc || "",
+        qty:  Number(l.qty || 1),
+        price: Number(l.price || 0),
+        dtopct: Number(l.dtopct || 0),
+        vat: l.vat || "iva21",
+        productId: l.productId || undefined,
+      })),
+      // nota opcional (si tu albarán la tuviera)
+      note: a.note || "",
+    };
+    setInvoiceSeed(seed);
+    setTab("facturas"); // cambia de pestaña
+  }
+
   return (
     <div className="app-shell mx-auto max-w-7xl p-4 sm:p-5 md:p-6 space-y-5">
       {/* Modal obligatorio de conexión a Drive */}
@@ -497,6 +525,7 @@ export default function App() {
           onSaveProduct={upsertProduct}
           loading={loading}
           isDocNumberTaken={isDocNumberTaken}
+          onFacturar={startInvoiceFromAlbaran}
         />
       )}
 
@@ -514,6 +543,8 @@ export default function App() {
           onSaveProduct={upsertProduct}
           loading={loading}
           isDocNumberTaken={isDocNumberTaken}
+          prefillDraft={invoiceSeed}
+          consumePrefill={() => setInvoiceSeed(null)}
         />
       )}
 
