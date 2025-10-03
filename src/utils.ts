@@ -342,3 +342,86 @@ export async function sendEmailWithPDF({
   }
   return await resp.json().catch(()=> ({}));
 }
+
+/** Abre una pestaña, renderiza el HTML a PDF A4 y devuelve el base64 a este window vía postMessage. */
+export function emailViaPopup(html: string, opts: {
+  title?: string,
+  onPdf: (pdfBase64: string) => Promise<void>,  // qué hacer con el PDF (enviar email)
+}) : Promise<void> {
+  const w = window.open("", "_blank");
+  if (!w) {
+    alert("Tu navegador ha bloqueado la ventana emergente. Permite pop-ups para continuar.");
+    return Promise.resolve();
+  }
+
+  // NOTA: usamos las libs por CDN dentro de la pestaña (no necesitas instalarlas)
+  const WRAP = `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8"/>
+      <title>${(opts.title || "").replace(/</g,"&lt;")}</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+      <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+      <style>html,body{background:#fff;}</style>
+    </head>
+    <body>
+      ${html}
+      <script>
+      (async function(){
+        try{
+          // Espera a que el layout se estabilice
+          await new Promise(r=>setTimeout(r,100));
+          var page = document.querySelector('.page') || document.body;
+
+          // A4: 595x842 pt
+          var canvas = await html2canvas(page, { scale: 2, backgroundColor:'#fff', useCORS:true });
+          var dataUrl = canvas.toDataURL('image/png');
+
+          var jspdf = window.jspdf;
+          var pdf = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+          pdf.addImage(dataUrl, 'PNG', 0, 0, 595, 842);
+
+          var blob = pdf.output('blob');
+          var arr = await blob.arrayBuffer();
+          var bytes = new Uint8Array(arr);
+          var bin = '';
+          for (var i=0; i<bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          var pdfBase64 = btoa(bin);
+
+          window.opener.postMessage({ __FSCLONE_PDF_READY__: true, pdfBase64: pdfBase64 }, '*');
+        }catch(e){
+          window.opener.postMessage({ __FSCLONE_PDF_ERROR__: String(e && (e.message||e)) }, '*');
+        }
+        setTimeout(function(){ try{ window.close(); }catch(_){} }, 200);
+      })();
+      </script>
+    </body>
+  </html>`;
+
+  w.document.open(); w.document.write(WRAP); w.document.close();
+
+  return new Promise<void>((resolve, reject) => {
+    const onMsg = async (ev: MessageEvent) => {
+      if (!ev || !ev.data) return;
+      if (ev.data.__FSCLONE_PDF_READY__) {
+        window.removeEventListener('message', onMsg);
+        try { await opts.onPdf(ev.data.pdfBase64); resolve(); }
+        catch(e){ reject(e); }
+        return;
+      }
+      if (ev.data.__FSCLONE_PDF_ERROR__) {
+        window.removeEventListener('message', onMsg);
+        reject(new Error(ev.data.__FSCLONE_PDF_ERROR__));
+      }
+    };
+    const timeout = setTimeout(()=>{
+      window.removeEventListener('message', onMsg);
+      reject(new Error("Tiempo de espera generando el PDF."));
+    }, 25000);
+    window.addEventListener('message', (ev) => {
+      clearTimeout(timeout);
+      onMsg(ev);
+    });
+  });
+}
