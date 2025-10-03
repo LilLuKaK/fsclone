@@ -1,5 +1,7 @@
 // @ts-nocheck
 /* Utilidades compartidas, catálogos y cálculos */
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 export const TZ = "Europe/Madrid";
 
@@ -343,116 +345,59 @@ export async function sendEmailWithPDF({
   return await resp.json().catch(()=> ({}));
 }
 
-export function emailViaPopup(html: string, opts: {
-  title?: string,
-  onPdf: (pdfBase64: string) => Promise<void>,
-}) : Promise<void> {
-  // 1) Parsear HTML: extraer <style> y <body>
-  const extract = (full: string) => {
-    const styles = Array.from(full.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi))
-      .map(m => m[1]).join("\n");
-    const mBody = full.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const body = mBody ? mBody[1] : full;
-    return { styles, body };
-  };
-  const { styles, body } = extract(html);
+/** Convierte ArrayBuffer a base64 */
+export function arrayBufferToBase64(buf: ArrayBuffer): string {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
 
-  // 2) Abrir popup
-  const w = window.open("", "_blank");
-  if (!w) {
-    alert("Tu navegador bloqueó la ventana emergente. Permite pop-ups para continuar.");
-    return Promise.resolve();
+/** Genera un PDF A4 desde un HTML (mismo que usas para imprimir) en la propia ventana. */
+export async function makePdfFromHtml(html: string): Promise<{ blob: Blob; base64: string; url: string }> {
+  // 1) Montar fuera de pantalla
+  const holder = document.createElement("div");
+  holder.style.position = "fixed";
+  holder.style.left = "-99999px";
+  holder.style.top = "0";
+  holder.style.width = "900px";
+  holder.style.background = "#fff";
+  holder.innerHTML = html;
+  document.body.appendChild(holder);
+
+  // 2) Asegurar .page A4 en pt si no viene (debería venir)
+  let page = holder.querySelector(".page") as HTMLElement | null;
+  if (!page) {
+    page = document.createElement("div");
+    page.className = "page";
+    page.style.width = "595pt";
+    page.style.minHeight = "842pt";
+    page.style.padding = "40pt";
+    page.style.background = "#fff";
+    while (holder.firstChild) page.appendChild(holder.firstChild);
+    holder.appendChild(page);
   }
 
-  // 3) CSS base A4 en puntos + estilos extraídos
-  const BASE_CSS = `
-    html,body{margin:0;padding:0;background:#fff}
-    *{box-sizing:border-box}
-    .page{width:595pt;min-height:842pt;margin:0 auto;padding:40pt;background:#fff}
-  `;
+  // 3) Esperar fuentes e imágenes
+  try { if ((document as any).fonts?.ready) await (document as any).fonts.ready; } catch {}
+  const imgs = Array.from(page.querySelectorAll("img"));
+  await Promise.all(imgs.map(img => new Promise<void>(res => img.complete ? res() : (img.onload = img.onerror = () => res()))));
+  await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
 
-  // 4) HTML del popup (usamos libs por CDN solo en esta pestaña)
-  const WRAP = `<!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8"/>
-      <title>${(opts.title || "").replace(/</g,"&lt;")}</title>
-      <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-      <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-      <style>${BASE_CSS}\n${styles}</style>
-    </head>
-    <body>${body}
-      <script>
-      (async function(){
-        try{
-          // Si no hay .page, creamos una y metemos todo dentro
-          var page = document.querySelector('.page');
-          if(!page){
-            page = document.createElement('div');
-            page.className = 'page';
-            while(document.body.firstChild){
-              page.appendChild(document.body.firstChild);
-            }
-            document.body.appendChild(page);
-          }
+  // 4) Capturar y crear PDF
+  const canvas = await html2canvas(page, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+  const dataUrl = canvas.toDataURL("image/png");
 
-          // Esperar fuentes e imágenes
-          try{ if(document.fonts && document.fonts.ready) { await document.fonts.ready; } }catch(_){}
-          var imgs = Array.from(page.querySelectorAll('img'));
-          await Promise.all(imgs.map(function(img){
-            return new Promise(function(res){ if(img.complete) res(); else img.onload = img.onerror = function(){ res(); }; });
-          }));
-          await new Promise(function(res){ requestAnimationFrame(function(){ requestAnimationFrame(res); }); });
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.addImage(dataUrl, "PNG", 0, 0, 595, 842);
 
-          // Captura → PDF A4
-          var canvas = await html2canvas(page, { scale: 2, backgroundColor:'#fff', useCORS:true });
-          var dataUrl = canvas.toDataURL('image/png');
+  const blob = pdf.output("blob");
+  const arr = await (blob as Blob).arrayBuffer();
+  const base64 = arrayBufferToBase64(arr);
+  const url = URL.createObjectURL(blob);
 
-          var jspdf = window.jspdf;
-          var pdf = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
-          pdf.addImage(dataUrl, 'PNG', 0, 0, 595, 842);
+  // 5) Limpieza
+  document.body.removeChild(holder);
 
-          var blob = pdf.output('blob');
-          var arr = await blob.arrayBuffer();
-          var bytes = new Uint8Array(arr); var bin = '';
-          for (var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
-          var pdfBase64 = btoa(bin);
-
-          window.opener.postMessage({ __FSCLONE_PDF_READY__: true, pdfBase64: pdfBase64 }, '*');
-        }catch(e){
-          window.opener.postMessage({ __FSCLONE_PDF_ERROR__: String(e && (e.message||e)) }, '*');
-        }
-        // deja respirar 300ms y cierra
-        setTimeout(function(){ try{ window.close(); }catch(_){} }, 300);
-      })();
-      </script>
-    </body>
-  </html>`;
-
-  w.document.open(); w.document.write(WRAP); w.document.close();
-
-  // 5) Esperar respuesta del popup
-  return new Promise<void>((resolve, reject) => {
-    let done = false;
-    const onMsg = async (ev: MessageEvent) => {
-      if (!ev || !ev.data) return;
-      if (ev.data.__FSCLONE_PDF_READY__) {
-        if (done) return; done = true;
-        window.removeEventListener('message', onMsg);
-        try { await opts.onPdf(ev.data.pdfBase64); resolve(); }
-        catch(e){ reject(e); }
-      } else if (ev.data.__FSCLONE_PDF_ERROR__) {
-        if (done) return; done = true;
-        window.removeEventListener('message', onMsg);
-        reject(new Error(ev.data.__FSCLONE_PDF_ERROR__));
-      }
-    };
-    const t = setTimeout(()=>{
-      if (done) return;
-      window.removeEventListener('message', onMsg);
-      reject(new Error("Timeout generando PDF en popup."));
-    }, 30000);
-    window.addEventListener('message', (ev) => { clearTimeout(t); onMsg(ev); });
-  });
+  return { blob, base64, url };
 }

@@ -4,7 +4,7 @@ import { GoogleDriveProviderFactory, LocalProvider } from "./providers/storage";
 import {
   TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
   nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
-  sendEmailWithPDF, updateSeller, emailViaPopup
+  sendEmailWithPDF, updateSeller
 } from "./utils";
 import ClientesPage from "./pages/Clientes";
 import AlbaranesPage from "./pages/Albaranes";
@@ -13,6 +13,9 @@ import CartaPortePage, { renderCPHTML } from "./pages/CartaPorte";
 import ResumenFiscal from "./pages/ResumenFiscal";
 import Dialog from "./components/Dialog";
 import Modal from "./components/Modal";
+
+import Dialog from "./components/Dialog";
+import { makePdfFromHtml } from "./utils";
 
 import "./theme.css";
 
@@ -35,6 +38,10 @@ export default function App() {
   const [forceDriveModal, setForceDriveModal] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
 
+  const [mailPrevOpen, setMailPrevOpen] = useState(false);
+const [mailPrevUrl, setMailPrevUrl] = useState<string | null>(null);
+const [mailPrevPayload, setMailPrevPayload] = useState<any | null>(null); // {to, subject, message, filename, pdfBase64}
+const [mailSending, setMailSending] = useState(false);
 
   const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -320,74 +327,50 @@ export default function App() {
   };
   // ===== Enviar por email (PDF adjunto) =====
   async function emailFactura(f) {
-    const c = customers.find(x => x.id === f.customerId);
-    const to = prompt("Enviar factura a (email):", c?.email || "") || "";
-    if (!to) return;
+  const c = customers.find(x => x.id === f.customerId);
+  const to = prompt("Enviar factura a (email):", c?.email || "") || "";
+  if (!to) return;
+  const html = renderDocHTML(f, "factura");
+  const filename = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}.pdf`;
 
-    const html = renderDocHTML(f, "factura");
-    const filename = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}.pdf`;
-
-    await emailViaPopup(html, {
-      title: filename.replace(/\.pdf$/,""),
-      onPdf: async (pdfBase64) => {
-        await sendEmailWithPDF({
-          to,
-          subject: `Factura ${f.series}-${f.number}`,
-          message: `Adjuntamos la factura ${f.series}-${f.number}.`,
-          filename,
-          pdfBase64,              // 👈 adjuntamos el PDF generado
-        });
-        alert("✅ Email enviado");
-      }
-    });
-  }
+  await prepareAndPreviewEmailPDF(html, {
+    to,
+    subject: `Factura ${f.series}-${f.number}`,
+    message: `Adjuntamos la factura ${f.series}-${f.number}.`,
+    filename,
+  });
+}
 
   async function emailAlbaran(a) {
-    const c = customers.find(x => x.id === a.customerId);
-    const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
-    if (!to) return;
+  const c = customers.find(x => x.id === a.customerId);
+  const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
+  if (!to) return;
+  const html = renderDocHTML(a, "albaran");
+  const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
 
-    const html = renderDocHTML(a, "albaran");
-    const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
-
-    await emailViaPopup(html, {
-      title: filename.replace(/\.pdf$/,""),
-      onPdf: async (pdfBase64) => {
-        await sendEmailWithPDF({
-          to,
-          subject: `Albarán ${a.series}-${a.number}`,
-          message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
-          filename,
-          pdfBase64,
-        });
-        alert("✅ Email enviado");
-      }
-    });
-  }
+  await prepareAndPreviewEmailPDF(html, {
+    to,
+    subject: `Albarán ${a.series}-${a.number}`,
+    message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
+    filename,
+  });
+}
 
   async function emailCP(cp) {
-    const cid = cp.customerId || cp.consignatarioId;
-    const c = customers.find(x => x.id === cid);
-    const to = prompt("Enviar Carta de Porte a (email):", c?.email || "") || "";
-    if (!to) return;
+  const cid = cp.customerId || cp.consignatarioId;
+  const c = customers.find(x => x.id === cid);
+  const to = prompt("Enviar Carta de Porte a (email):", c?.email || "") || "";
+  if (!to) return;
+  const html = renderCPHTML(cp);
+  const filename = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}.pdf`;
 
-    const html = renderCPHTML(cp);
-    const filename = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}.pdf`;
-
-    await emailViaPopup(html, {
-      title: filename.replace(/\.pdf$/,""),
-      onPdf: async (pdfBase64) => {
-        await sendEmailWithPDF({
-          to,
-          subject: `Carta de Porte ${cp.numero || ""}`,
-          message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`,
-          filename,
-          pdfBase64,
-        });
-        alert("✅ Email enviado");
-      }
-    });
-  }
+  await prepareAndPreviewEmailPDF(html, {
+    to,
+    subject: `Carta de Porte ${cp.numero || ""}`,
+    message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`,
+    filename,
+  });
+}
 
   function upsertProduct(prod) {
     setProducts((prev) => {
@@ -462,6 +445,19 @@ export default function App() {
     setInvoiceSeed(seed);
     setTab("facturas"); // cambia de pestaña
   }
+
+  async function prepareAndPreviewEmailPDF(html: string, meta: { to: string; subject: string; message: string; filename: string; }) {
+  try {
+    const { base64, url } = await makePdfFromHtml(html);
+    // Guardamos el payload que enviaremos al confirmar
+    setMailPrevPayload({ ...meta, pdfBase64: base64 });
+    setMailPrevUrl(url);
+    setMailPrevOpen(true);
+  } catch (e) {
+    console.error(e);
+    alert("No se pudo generar el PDF para previsualización.");
+  }
+}
 
   return (
     <div className="app-shell mx-auto max-w-7xl p-4 sm:p-5 md:p-6 space-y-5">
@@ -667,6 +663,47 @@ export default function App() {
           </button>
         </div>
       </Modal>
+
+      {mailPrevOpen && (
+  <Dialog open={mailPrevOpen} onClose={()=>{
+      if (mailPrevUrl) URL.revokeObjectURL(mailPrevUrl);
+      setMailPrevUrl(null); setMailPrevPayload(null); setMailPrevOpen(false);
+    }} title="Previsualizar documento a enviar">
+    <div className="w-full" style={{height: "72vh"}}>
+      {mailPrevUrl ? (
+        // Previsualización PDF real (si el navegador lo soporta)
+        <iframe src={mailPrevUrl} className="w-full h-full rounded border" />
+      ) : (
+        <div className="h-full flex items-center justify-center text-sm text-gray-600">
+          Generando vista previa…
+        </div>
+      )}
+    </div>
+    <div className="flex justify-end gap-2 mt-3">
+      <button className="px-3 py-1 border rounded"
+        onClick={()=>{
+          if (mailPrevUrl) URL.revokeObjectURL(mailPrevUrl);
+          setMailPrevUrl(null); setMailPrevPayload(null); setMailPrevOpen(false);
+        }}>Cancelar</button>
+      <button className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-60"
+        disabled={!mailPrevPayload || mailSending}
+        onClick={async ()=>{
+          if (!mailPrevPayload) return;
+          try {
+            setMailSending(true);
+            await sendEmailWithPDF(mailPrevPayload); // usa pdfBase64
+            alert("✅ Email enviado");
+            if (mailPrevUrl) URL.revokeObjectURL(mailPrevUrl);
+            setMailPrevUrl(null); setMailPrevPayload(null); setMailPrevOpen(false);
+          } catch(e:any) {
+            alert("❌ No se pudo enviar el email: " + (e?.message || e));
+          } finally { setMailSending(false); }
+        }}>
+        {mailSending ? "Enviando…" : "Enviar ahora"}
+      </button>
+    </div>
+  </Dialog>
+)}
 
       {(loading || connectingDrive) && (
         <div className="screen-blocker">
