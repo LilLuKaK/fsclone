@@ -286,45 +286,53 @@ export default function AlbaranesPage({
 
       {/* Crear (cabecera + líneas) – usa el estado nuevo */}
       <Modal open={!!createAlbOpen} onClose={() => setCreateAlbOpen(false)} title="Nuevo albarán">
-        <AlbHeader draft={albDraft} setDraft={setAlbDraft} customers={customers} />
-        <LinesEditor
-          doc={albDraft}
-          setDoc={setAlbDraft}
-          products={products}
-          onSaveProduct={onSaveProduct}
-        />
-        <div className="flex justify-end gap-2 mt-3">
-          <button className="px-3 py-2 rounded border" onClick={() => setCreateAlbOpen(false)}>
-            Cancelar
-          </button>
-          <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateAlb}>
-            Guardar
-          </button>
+        <div className="modal-grid">
+          <AlbHeader draft={albDraft} setDraft={setAlbDraft} customers={customers} />
+          <div className="lines-scroll">
+            <LinesEditor
+              doc={albDraft}
+              setDoc={setAlbDraft}
+              products={products}
+              onSaveProduct={onSaveProduct}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-3">
+            <button className="px-3 py-2 rounded border" onClick={() => setCreateAlbOpen(false)}>
+              Cancelar
+            </button>
+            <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateAlb}>
+              Guardar
+            </button>
+          </div>
         </div>
       </Modal>
 
       {/* Editar (cabecera + líneas) */}
       <Modal open={editOpen && !!draft} onClose={() => setEditOpen(false)} title="Editar albarán">
-        <AlbHeader draft={draft} setDraft={setDraft} customers={customers} />
-        <LinesEditor
-          doc={draft}
-          setDoc={setDraft}
-          products={products}
-          onSaveProduct={onSaveProduct}
-        />
-        <div className="flex justify-end gap-2 mt-3">
-          <button
-            className="px-3 py-2 rounded border"
-            onClick={() => setEditOpen(false)}
-          >
-            Cancelar
-          </button>
-          <button
-            className="px-3 py-2 rounded bg-blue text-white"
-            onClick={saveEdit}
-          >
-            Guardar cambios
-          </button>
+        <div className="modal-grid">
+          <AlbHeader draft={draft} setDraft={setDraft} customers={customers} />
+          <div className="lines-scroll">
+            <LinesEditor
+              doc={draft}
+              setDoc={setDraft}
+              products={products}
+              onSaveProduct={onSaveProduct}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              className="px-3 py-2 rounded border"
+              onClick={() => setEditOpen(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              className="px-3 py-2 rounded bg-blue text-white"
+              onClick={saveEdit}
+            >
+              Guardar cambios
+            </button>
+          </div>
         </div>
       </Modal>
     </section>

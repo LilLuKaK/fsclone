@@ -158,3 +158,22 @@ html,body{ background:var(--bg); -webkit-font-smoothing:antialiased; }
     min-height: 110px;
   }
 }
+
+/* Rejilla del contenido del modal: cabecera (auto) + líneas (1fr) + botones (auto) */
+.modal-grid{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto; /* 👈 clave: minmax(0, 1fr) */
+  gap: 12px;
+  min-height: 0;  /* 👈 permite que la fila intermedia se encoja y haga scroll */
+}
+
+/* La caja que envuelve a LinesEditor es la que scrollea */
+.lines-scroll{
+  overflow: auto;
+  min-height: 0;       /* 👈 imprescindible en grid/flex */
+  padding-right: 4px;  /* evita salto por la barra */
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+@media (min-height:900px){ .modal-grid{ max-height:calc(92vh - 20px); } }
+@media (max-height:700px){ .modal-grid{ max-height:calc(78vh - 16px); } }

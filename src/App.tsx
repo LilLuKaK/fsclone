@@ -4,7 +4,7 @@ import { GoogleDriveProviderFactory, LocalProvider } from "./providers/storage";
 import {
   TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
   nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
-  sendEmailWithPDF, updateSeller, openEmailComposerWithDoc
+  sendEmailWithPDF, updateSeller
 } from "./utils";
 import ClientesPage from "./pages/Clientes";
 import AlbaranesPage from "./pages/Albaranes";
@@ -318,68 +318,49 @@ export default function App() {
     const title = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}`;
     openPrintWindow(renderCPHTML(cp), { title });
   };
-
   // ===== Enviar por email (PDF adjunto) =====
-
-  // Exponer el sender para que la ventana hijo lo use
-  // @ts-ignore
-  (window as any).__FSCLONE_SEND_EMAIL__ = async (args: {
-    to: string; subject: string; message: string; filename: string; pdfBase64: string;
-  }) => {
-    await sendEmailWithPDF(args);   // usa tu función real (ya la importas de utils)
-  };
-
   async function emailFactura(f) {
-  const c = customers.find(x => x.id === f.customerId);
-  const to = prompt("Enviar factura a (email):", c?.email || "") || "";
-  if (!to) return;
-
-  const html = renderDocHTML(f, "factura");
-  const filename = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}.pdf`;
-
-  openEmailComposerWithDoc(html, {
-    title: filename.replace(/\.pdf$/,""),
-    to,
-    subject: `Factura ${f.series}-${f.number}`,
-    message: `Adjuntamos la factura ${f.series}-${f.number}.`,
-    filename,
-  });
-}
+    const c = customers.find(x => x.id === f.customerId);
+    const to = prompt("Enviar factura a (email):", c?.email || "") || "";
+    if (!to) return;
+    const html = renderDocHTML(f, "factura");
+    const filename = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}.pdf`;
+    try {
+      await sendEmailWithPDF({ to, subject: `Factura ${f.series}-${f.number}`, message: `Adjuntamos la factura ${f.series}-${f.number}.`, html, filename });
+      alert("✅ Email enviado");
+    } catch (e) {
+      console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
+    }
+  }
 
   async function emailAlbaran(a) {
-  const c = customers.find(x => x.id === a.customerId);
-  const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
-  if (!to) return;
-
-  const html = renderDocHTML(a, "albaran");
-  const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
-
-  openEmailComposerWithDoc(html, {
-    title: filename.replace(/\.pdf$/,""),
-    to,
-    subject: `Albarán ${a.series}-${a.number}`,
-    message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
-    filename,
-  });
-}
+    const c = customers.find(x => x.id === a.customerId);
+    const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
+    if (!to) return;
+    const html = renderDocHTML(a, "albaran");
+    const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
+    try {
+      await sendEmailWithPDF({ to, subject: `Albarán ${a.series}-${a.number}`, message: `Adjuntamos el albarán ${a.series}-${a.number}.`, html, filename });
+      alert("✅ Email enviado");
+    } catch (e) {
+      console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
+    }
+  }
 
   async function emailCP(cp) {
-  const cid = cp.customerId || cp.consignatarioId;
-  const c = customers.find(x => x.id === cid);
-  const to = prompt("Enviar Carta de Porte a (email):", c?.email || "") || "";
-  if (!to) return;
-
-  const html = renderCPHTML(cp);
-  const filename = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}.pdf`;
-
-  openEmailComposerWithDoc(html, {
-    title: filename.replace(/\.pdf$/,""),
-    to,
-    subject: `Carta de Porte ${cp.numero || ""}`,
-    message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`,
-    filename,
-  });
-}
+    const cid = cp.customerId || cp.consignatarioId;
+    const c = customers.find(x => x.id === cid);
+    const to = prompt("Enviar Carta de Porte a (email):", c?.email || "") || "";
+    if (!to) return;
+    const html = renderCPHTML(cp);
+    const filename = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}.pdf`;
+    try {
+      await sendEmailWithPDF({ to, subject: `Carta de Porte ${cp.numero || ""}`, message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`, html, filename });
+      alert("✅ Email enviado");
+    } catch (e) {
+      console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
+    }
+  }
 
   function upsertProduct(prod) {
     setProducts((prev) => {

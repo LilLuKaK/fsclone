@@ -56,7 +56,12 @@ export default function Modal({ open, onClose, title, children, hideClose }: Mod
     boxShadow: "0 20px 60px rgba(0,0,0,.25)",
     border: "1px solid rgba(0,0,0,.08)",
     padding: 20,
-    zIndex: Z, // por si acaso
+    zIndex: Z,
+    maxHeight: "85vh",
+    overflow: "hidden",
+    display: "flex",          // 👈 NUEVO
+    flexDirection: "column",  // 👈 NUEVO
+    minHeight: 0,             // 👈 NUEVO (permite que hijos con overflow:auto se encojan)
   };
 
   const headerStyle: React.CSSProperties = {
