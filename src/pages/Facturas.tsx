@@ -341,45 +341,53 @@ export default function FacturasPage({
         onClose={() => setCreateFacOpen(false)}
         title="Nueva factura"
       >
-        <FacHeader draft={facDraft} setDraft={setFacDraft} customers={customers} />
-        <LinesEditor
-          doc={facDraft}
-          setDoc={setFacDraft}
-          products={products}
-          onSaveProduct={onSaveProduct}
-        />
-        <div className="flex justify-end gap-2 mt-3">
-          <button className="px-3 py-2 rounded border" onClick={() => setCreateFacOpen(false)}>
-            Cancelar
-          </button>
-          <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateFac}>
-            Guardar
-          </button>
+        <div className="modal-grid">
+          <FacHeader draft={facDraft} setDraft={setFacDraft} customers={customers} />
+          <div className="lines-scroll">
+            <LinesEditor
+              doc={facDraft}
+              setDoc={setFacDraft}
+              products={products}
+              onSaveProduct={onSaveProduct}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-3">
+            <button className="px-3 py-2 rounded border" onClick={() => setCreateFacOpen(false)}>
+              Cancelar
+            </button>
+            <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={saveCreateFac}>
+              Guardar
+            </button>
+          </div>
         </div>
       </Modal>
 
       {/* Editar (cabecera + líneas) */}
       <Modal open={editOpen && !!draft} onClose={() => setEditOpen(false)} title="Editar factura">
-        <FacHeader draft={draft} setDraft={setDraft} customers={customers} />
-        <LinesEditor
-          doc={draft}
-          setDoc={setDraft}
-          products={products}
-          onSaveProduct={onSaveProduct}
-        />
-        <div className="flex justify-end gap-2 mt-3">
-          <button
-            className="px-3 py-2 rounded border"
-            onClick={() => setEditOpen(false)}
-          >
-            Cancelar
-          </button>
-          <button
-            className="px-3 py-2 rounded bg-blue text-white"
-            onClick={saveEdit}
-          >
-            Guardar cambios
-          </button>
+        <div className="modal-grid">
+          <FacHeader draft={draft} setDraft={setDraft} customers={customers} />
+          <div className="lines-scroll">
+            <LinesEditor
+              doc={draft}
+              setDoc={setDraft}
+              products={products}
+              onSaveProduct={onSaveProduct}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              className="px-3 py-2 rounded border"
+              onClick={() => setEditOpen(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              className="px-3 py-2 rounded bg-blue text-white"
+              onClick={saveEdit}
+            >
+              Guardar cambios
+            </button>
+          </div>
         </div>
       </Modal>
     </section>
