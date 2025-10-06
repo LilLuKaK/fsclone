@@ -2,7 +2,7 @@
 import CartaPortePage from "./pages/CartaPorte";
 import { renderDocHTML, renderCPHTML } from "./pdf/templates";
 import { TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
-  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
+  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,sendEmailServerPDFHtml,
   sendEmailServerPDF, updateSeller } from "./utils";
 import React, { useEffect, useState } from "react";
 import { GoogleDriveProviderFactory, LocalProvider } from "./providers/storage";
