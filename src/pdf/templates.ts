@@ -1,6 +1,5 @@
-// src/pdf/templates.ts
 // @ts-nocheck
-import { fmtDate, fmtMoney, computeTotals, Seller } from "../utils";
+import { fmtDate, fmtMoney, computeTotals, Seller } from "./../utils";
 
 // Mismo CSS base que usas hoy (A4, margen 0; el margen visual es el padding de .page)
 const BASE_CSS = `

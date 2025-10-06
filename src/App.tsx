@@ -1,24 +1,20 @@
 // @ts-nocheck
-import CartaPortePage, { renderCPHTML } from "./pages/CartaPorte";
 import CartaPortePage from "./pages/CartaPorte";
 import { renderDocHTML, renderCPHTML } from "./pdf/templates";
-import { TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
-  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
-  sendEmailWithPDF, updateSeller } from "./utils";
 import { TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
   nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
   sendEmailServerPDF, updateSeller } from "./utils";
 import React, { useEffect, useState } from "react";
 import { GoogleDriveProviderFactory, LocalProvider } from "./providers/storage";
-import {
-  TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
-  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
-  sendEmailWithPDF, updateSeller
-} from "./utils";
+// import {
+//   TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
+//   nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
+//   sendEmailWithPDF, updateSeller
+// } from "./utils";
 import ClientesPage from "./pages/Clientes";
 import AlbaranesPage from "./pages/Albaranes";
 import FacturasPage from "./pages/Facturas";
-import CartaPortePage, { renderCPHTML } from "./pages/CartaPorte";
+// import CartaPortePage, { renderCPHTML } from "./pages/CartaPorte";
 import ResumenFiscal from "./pages/ResumenFiscal";
 import Dialog from "./components/Dialog";
 import Modal from "./components/Modal";

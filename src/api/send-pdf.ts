@@ -1,6 +1,8 @@
 // api/send-pdf.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Resend } from "resend";
+// IMPORTA ESTÁTICO el renderer para que TypeScript lo resuelva y lo empaquete
+import { renderDocHTML, renderCPHTML } from "./../pdf/templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const FROM = process.env.RESEND_FROM || "onboarding@resend.dev";
@@ -14,43 +16,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Faltan campos: kind, data, to, subject, filename" });
     }
 
-    // Carga condicional de Chromium + Puppeteer (Vercel vs local)
-    const isVercel = !!process.env.VERCEL;
-    let browser: any, page: any;
-
+    // 1) Renderizamos HTML según el tipo
     let html: string;
     if (kind === "albaran" || kind === "factura") {
-      const { renderDocHTML } = await import("../src/pdf/templates.js"); // Vite/TS compila .ts
       html = renderDocHTML(data, kind, customer);
     } else if (kind === "cp") {
-      const { renderCPHTML } = await import("../src/pdf/templates.js");
       html = renderCPHTML(data);
     } else {
       return res.status(400).json({ error: "kind inválido" });
     }
 
+    // 2) Lanzamos Chrome headless (Vercel vs local)
+    const isVercel = !!process.env.VERCEL;
+    let browser: any;
+
     if (isVercel) {
+      // Vercel: usa @sparticuz/chromium + puppeteer-core
       const chromium = await import("@sparticuz/chromium");
-      const puppeteer = await import("puppeteer-core");
+      const { default: puppeteer } = await import("puppeteer-core");
+
+      // Algunos tipos no exponen todas las props -> tiramos de 'any' de forma acotada
+      const chr: any = chromium;
+
       browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        args: chr.args,                                 // ✅
+        executablePath: await chr.executablePath(),     // ✅
+        headless: true,                                 // ✅ suficiente
+        // defaultViewport no es necesario
       });
     } else {
-      const puppeteer = await import("puppeteer"); // requiere npm i -D puppeteer en local
-      browser = await puppeteer.launch({ headless: "new" });
+      // Local: puppeteer completo con binario incluido
+      const { default: puppeteer } = await import("puppeteer");
+      browser = await puppeteer.launch({ headless: true });
     }
 
-    page = await browser.newPage();
+    const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
     await page.emulateMediaType("screen");
 
-    // PDF respetando el tamaño del CSS (@page A4; margin:0) y con fondos
     const pdfBuffer = await page.pdf({
       printBackground: true,
-      preferCSSPageSize: true,
+      preferCSSPageSize: true, // respeta @page size/margins del HTML
       margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
     });
 
