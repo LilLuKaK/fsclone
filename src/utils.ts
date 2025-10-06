@@ -377,3 +377,25 @@ export async function sendEmailServerPDF({
   if (!resp.ok) throw new Error(await resp.text().catch(()=> "Fallo enviando email"));
   return resp.json();
 }
+
+export async function sendEmailServerPDFHtml({
+  html,
+  to,
+  subject,
+  message,
+  filename,
+}: {
+  html: string;
+  to: string;
+  subject: string;
+  message?: string;
+  filename: string;
+}) {
+  const resp = await fetch("/api/send-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ html, to, subject, message, filename }),
+  });
+  if (!resp.ok) throw new Error(await resp.text().catch(() => "Fallo enviando email"));
+  return resp.json();
+}

@@ -352,13 +352,21 @@ export default function App() {
     const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
     if (!to) return;
     // const html = renderDocHTML(a, "albaran");
+    const html = renderDocHTML(a, "albaran", c);
     const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
     try {
       // await sendEmailWithPDF({ to, subject: `Albarán ${a.series}-${a.number}`, message: `Adjuntamos el albarán ${a.series}-${a.number}.`, html, filename });
-      await sendEmailServerPDF({
-        kind: "albaran",
-        data: a,
-        customer: c,
+      // await sendEmailServerPDF({
+      //   kind: "albaran",
+      //   data: a,
+      //   customer: c,
+      //   to,
+      //   subject: `Albarán ${a.series}-${a.number}`,
+      //   message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
+      //   filename,
+      // });
+      await sendEmailServerPDFHtml({
+        html,
         to,
         subject: `Albarán ${a.series}-${a.number}`,
         message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
