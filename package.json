@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^140.0.0",
     "@tailwindcss/vite": "^4.1.12",
     "@vercel/node": "^5.3.22",
     "html2pdf.js": "^0.12.0",
+    "puppeteer-core": "^24.23.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "resend": "^6.0.3"

@@ -356,3 +356,24 @@ export async function sendEmailWithPDF({
   }
   return await resp.json().catch(()=> ({}));
 }
+
+// @ts-nocheck
+/** Envía email generando el PDF en el backend (recomendado) */
+export async function sendEmailServerPDF({
+  kind, data, customer, to, subject, message, filename,
+}: {
+  kind: "albaran" | "factura" | "cp";
+  data: any;
+  customer?: any;             // pásalo para totales (RE/IRPF) en albarán/factura
+  to: string; subject: string;
+  message?: string;
+  filename: string;
+}) {
+  const resp = await fetch("/api/send-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, data, customer, to, subject, message, filename }),
+  });
+  if (!resp.ok) throw new Error(await resp.text().catch(()=> "Fallo enviando email"));
+  return resp.json();
+}

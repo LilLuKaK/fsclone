@@ -1,4 +1,13 @@
 // @ts-nocheck
+import CartaPortePage, { renderCPHTML } from "./pages/CartaPorte";
+import CartaPortePage from "./pages/CartaPorte";
+import { renderDocHTML, renderCPHTML } from "./pdf/templates";
+import { TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
+  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
+  sendEmailWithPDF, updateSeller } from "./utils";
+import { TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
+  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,
+  sendEmailServerPDF, updateSeller } from "./utils";
 import React, { useEffect, useState } from "react";
 import { GoogleDriveProviderFactory, LocalProvider } from "./providers/storage";
 import {
@@ -148,156 +157,156 @@ export default function App() {
   }, []);
 
   const customerById = (id) => customers.find((c) => c.id === id);
-  function renderDocHTML(doc: any, type: "albaran" | "factura") {
-    const isInvoice = type === "factura";
-    const c = customerById(doc.customerId);
-    const seller = Seller;
+  // function renderDocHTML(doc: any, type: "albaran" | "factura") {
+  //   const isInvoice = type === "factura";
+  //   const c = customerById(doc.customerId);
+  //   const seller = Seller;
 
-    const PRINT_CSS = `
-      @page { size: A4; margin: 0; }
-      * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; }
-      body {
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
-        font-size: 11pt; color: #111;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      }
-      .page {
-        width: 595pt;            /* A4 en puntos */
-        min-height: 842pt;
-        margin: 0 auto;
-        padding: 14mm;           /* margen interior */
-        background: #fff;
-      }
-      h1{ font-size:16pt; margin:0 0 8pt }
-      h2{ font-size:12pt; margin:0 }
-      .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
-      .muted{ color:#666; font-size:9pt }
-      .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
+  //   const PRINT_CSS = `
+  //     @page { size: A4; margin: 0; }
+  //     * { box-sizing: border-box; }
+  //     html, body { margin: 0; padding: 0; }
+  //     body {
+  //       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
+  //       font-size: 11pt; color: #111;
+  //       -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  //     }
+  //     .page {
+  //       width: 595pt;            /* A4 en puntos */
+  //       min-height: 842pt;
+  //       margin: 0 auto;
+  //       padding: 14mm;           /* margen interior */
+  //       background: #fff;
+  //     }
+  //     h1{ font-size:16pt; margin:0 0 8pt }
+  //     h2{ font-size:12pt; margin:0 }
+  //     .row{ display:flex; justify-content:space-between; gap:12pt; margin-bottom:10pt; align-items:flex-start; }
+  //     .muted{ color:#666; font-size:9pt }
+  //     .box{ border:1px solid #ddd; border-radius:6pt; padding:8pt; margin-top:8pt }
 
-      /* Tabla con distribución fija */
-      table{ width:100%; border-collapse: collapse; table-layout: fixed; }
-      th,td{ border-bottom:1px solid #ddd; padding:6pt; vertical-align:top; }
-      th{ text-align:left; font-weight:600; }
-      .desc{ text-align:left; word-break: break-word; }
-      .num { text-align:right; font-variant-numeric: tabular-nums; } /* números monoespaciados */
-      .tot{ margin-top:12pt; float:right; min-width: 170pt }
-      @media print { .page { box-shadow:none } }
-    `;
+  //     /* Tabla con distribución fija */
+  //     table{ width:100%; border-collapse: collapse; table-layout: fixed; }
+  //     th,td{ border-bottom:1px solid #ddd; padding:6pt; vertical-align:top; }
+  //     th{ text-align:left; font-weight:600; }
+  //     .desc{ text-align:left; word-break: break-word; }
+  //     .num { text-align:right; font-variant-numeric: tabular-nums; } /* números monoespaciados */
+  //     .tot{ margin-top:12pt; float:right; min-width: 170pt }
+  //     @media print { .page { box-shadow:none } }
+  //   `;
 
-    const addrSeller = `${seller.address}, ${seller.postalCode} ${seller.city} (${seller.country})`;
-    const addrBuyer = `${c?.address || ""}${c?.postalCode ? ", " + c.postalCode : ""}${c?.city ? " " + c.city : ""}${c?.country ? " (" + c.country + ")" : ""}`;
+  //   const addrSeller = `${seller.address}, ${seller.postalCode} ${seller.city} (${seller.country})`;
+  //   const addrBuyer = `${c?.address || ""}${c?.postalCode ? ", " + c.postalCode : ""}${c?.city ? " " + c.city : ""}${c?.country ? " (" + c.country + ")" : ""}`;
 
-    const COLGROUP = `
-      <colgroup>
-        <col style="width:42%;"> <!-- Descripción -->
-        <col style="width:8%;">  <!-- Ud. -->
-        <col style="width:14%;"> <!-- Precio -->
-        <col style="width:10%;"> <!-- Dto -->
-        <col style="width:12%;"> <!-- Tipo -->
-        <col style="width:14%;"> <!-- Importe -->
-      </colgroup>
-    `;
+  //   const COLGROUP = `
+  //     <colgroup>
+  //       <col style="width:42%;"> <!-- Descripción -->
+  //       <col style="width:8%;">  <!-- Ud. -->
+  //       <col style="width:14%;"> <!-- Precio -->
+  //       <col style="width:10%;"> <!-- Dto -->
+  //       <col style="width:12%;"> <!-- Tipo -->
+  //       <col style="width:14%;"> <!-- Importe -->
+  //     </colgroup>
+  //   `;
 
-    const linesHTML = (doc.lines || []).map((l: any) => {
-      const vat = VAT_RATES.find((v) => v.id === l.vat) || VAT_RATES[0];
-      const applyRE = isInvoice && !!c?.re;
-      const reRate =
-        applyRE
-          ? (l.vat === "iva21" ? 5.2 : l.vat === "iva10" ? 1.4 : l.vat === "iva4" ? 0.5 : 0)
-          : 0;
-      const total = computeTotals({ lines: [l] }, c, { isInvoice }).total;
-      const namePlusDesc = [l.name, l.desc].filter(Boolean).join(" — ");
+  //   const linesHTML = (doc.lines || []).map((l: any) => {
+  //     const vat = VAT_RATES.find((v) => v.id === l.vat) || VAT_RATES[0];
+  //     const applyRE = isInvoice && !!c?.re;
+  //     const reRate =
+  //       applyRE
+  //         ? (l.vat === "iva21" ? 5.2 : l.vat === "iva10" ? 1.4 : l.vat === "iva4" ? 0.5 : 0)
+  //         : 0;
+  //     const total = computeTotals({ lines: [l] }, c, { isInvoice }).total;
+  //     const namePlusDesc = [l.name, l.desc].filter(Boolean).join(" — ");
 
-      return `<tr>
-        <td class="desc">${namePlusDesc || ""}</td>
-        <td class="num">${l.qty ?? ""}</td>
-        <td class="num">${fmtMoney(l.price ?? 0)}</td>
-        <td class="num">${l.dtopct || 0}%</td>
-        <td class="num">${vat?.name || ""}${applyRE && reRate ? ` + RE ${reRate}%` : ""}</td>
-        <td class="num">${fmtMoney(total)}</td>
-      </tr>`;
-    }).join("");
+  //     return `<tr>
+  //       <td class="desc">${namePlusDesc || ""}</td>
+  //       <td class="num">${l.qty ?? ""}</td>
+  //       <td class="num">${fmtMoney(l.price ?? 0)}</td>
+  //       <td class="num">${l.dtopct || 0}%</td>
+  //       <td class="num">${vat?.name || ""}${applyRE && reRate ? ` + RE ${reRate}%` : ""}</td>
+  //       <td class="num">${fmtMoney(total)}</td>
+  //     </tr>`;
+  //   }).join("");
 
-    const t = computeTotals(doc, c, { isInvoice });
-    const title = isInvoice ? "FACTURA" : "ALBARÁN";
-    const num = doc.number ? `${doc.series}-${doc.number}` : `${doc.series}-⚙`;
+  //   const t = computeTotals(doc, c, { isInvoice });
+  //   const title = isInvoice ? "FACTURA" : "ALBARÁN";
+  //   const num = doc.number ? `${doc.series}-${doc.number}` : `${doc.series}-⚙`;
 
-    const deliveryBlock = !isInvoice ? `
-      <div class="box">
-        <div><b>Dirección de entrega</b></div>
-        <div>${doc.deliveryAddress || c?.deliveryAddress || addrBuyer}</div>
-        <div class="muted">Fecha de entrega: ${fmtDate(doc.deliveryDate)}</div>
-      </div>
-    ` : "";
+  //   const deliveryBlock = !isInvoice ? `
+  //     <div class="box">
+  //       <div><b>Dirección de entrega</b></div>
+  //       <div>${doc.deliveryAddress || c?.deliveryAddress || addrBuyer}</div>
+  //       <div class="muted">Fecha de entrega: ${fmtDate(doc.deliveryDate)}</div>
+  //     </div>
+  //   ` : "";
 
-    const legalNote = isInvoice
-      ? `<p class="muted" style="margin-top:6pt">Documento conforme a RD 1619/2012.${doc.isExempt && doc.exemptNote ? " " + doc.exemptNote : ""}${c?.re ? " — Cliente en recargo de equivalencia." : ""}</p>`
-      : `<p class="muted" style="margin-top:6pt">Documento de entrega (no fiscal).</p>`;
+  //   const legalNote = isInvoice
+  //     ? `<p class="muted" style="margin-top:6pt">Documento conforme a RD 1619/2012.${doc.isExempt && doc.exemptNote ? " " + doc.exemptNote : ""}${c?.re ? " — Cliente en recargo de equivalencia." : ""}</p>`
+  //     : `<p class="muted" style="margin-top:6pt">Documento de entrega (no fiscal).</p>`;
 
-    return `<!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${title} ${num}</title>
-        <style>${PRINT_CSS}</style>
-      </head>
-      <body>
-        <div class="page">
-          <div class="row">
-            <div>
-              <h2>${seller.name}</h2>
-              <div class="muted">NIF: ${seller.nif}</div>
-              <div class="muted">${addrSeller}</div>
-              <div class="muted">${seller.email} · ${seller.phone}</div>
-            </div>
-            <div style="text-align:right">
-              <h1>${title}</h1>
-              <div>Número: <b>${num}</b></div>
-              <div>Fecha: <b>${fmtDate(doc.date)}</b></div>
-            </div>
-          </div>
+  //   return `<!doctype html>
+  //   <html>
+  //     <head>
+  //       <meta charset="utf-8">
+  //       <title>${title} ${num}</title>
+  //       <style>${PRINT_CSS}</style>
+  //     </head>
+  //     <body>
+  //       <div class="page">
+  //         <div class="row">
+  //           <div>
+  //             <h2>${seller.name}</h2>
+  //             <div class="muted">NIF: ${seller.nif}</div>
+  //             <div class="muted">${addrSeller}</div>
+  //             <div class="muted">${seller.email} · ${seller.phone}</div>
+  //           </div>
+  //           <div style="text-align:right">
+  //             <h1>${title}</h1>
+  //             <div>Número: <b>${num}</b></div>
+  //             <div>Fecha: <b>${fmtDate(doc.date)}</b></div>
+  //           </div>
+  //         </div>
 
-          <div class="row">
-            <div>
-              <div><b>Cliente</b></div>
-              <div>${c?.name || ""}</div>
-              <div class="muted">NIF: ${c?.nif || ""}</div>
-              <div class="muted">${addrBuyer}</div>
-            </div>
-          </div>
+  //         <div class="row">
+  //           <div>
+  //             <div><b>Cliente</b></div>
+  //             <div>${c?.name || ""}</div>
+  //             <div class="muted">NIF: ${c?.nif || ""}</div>
+  //             <div class="muted">${addrBuyer}</div>
+  //           </div>
+  //         </div>
 
-          ${deliveryBlock}
+  //         ${deliveryBlock}
 
-          <table style="margin-top:12pt">
-            ${COLGROUP}
-            <thead>
-              <tr>
-                <th>Descripción</th>
-                <th class="num">Ud.</th>
-                <th class="num">Precio</th>
-                <th class="num">Dto</th>
-                <th class="num">Tipo</th>
-                <th class="num">Importe</th>
-              </tr>
-            </thead>
-            <tbody>${linesHTML || `<tr><td colspan="6" class="muted">Sin líneas</td></tr>`}</tbody>
-          </table>
+  //         <table style="margin-top:12pt">
+  //           ${COLGROUP}
+  //           <thead>
+  //             <tr>
+  //               <th>Descripción</th>
+  //               <th class="num">Ud.</th>
+  //               <th class="num">Precio</th>
+  //               <th class="num">Dto</th>
+  //               <th class="num">Tipo</th>
+  //               <th class="num">Importe</th>
+  //             </tr>
+  //           </thead>
+  //           <tbody>${linesHTML || `<tr><td colspan="6" class="muted">Sin líneas</td></tr>`}</tbody>
+  //         </table>
 
-          <div class="tot">
-            <div>Base imponible: <b>${fmtMoney(t.neto)}</b></div>
-            <div>IVA: <b>${fmtMoney(t.totaliva)}</b></div>
-            ${t.totalre>0?`<div>Recargo de equivalencia: <b>${fmtMoney(t.totalre)}</b></div>`:""}
-            ${t.totalirpf!==0?`<div>IRPF: <b>${fmtMoney(t.totalirpf)}</b></div>`:""}
-            <div style="margin-top:8pt">TOTAL: <b>${fmtMoney(t.total)}</b></div>
-          </div>
-          <div style="clear:both"></div>
+  //         <div class="tot">
+  //           <div>Base imponible: <b>${fmtMoney(t.neto)}</b></div>
+  //           <div>IVA: <b>${fmtMoney(t.totaliva)}</b></div>
+  //           ${t.totalre>0?`<div>Recargo de equivalencia: <b>${fmtMoney(t.totalre)}</b></div>`:""}
+  //           ${t.totalirpf!==0?`<div>IRPF: <b>${fmtMoney(t.totalirpf)}</b></div>`:""}
+  //           <div style="margin-top:8pt">TOTAL: <b>${fmtMoney(t.total)}</b></div>
+  //         </div>
+  //         <div style="clear:both"></div>
 
-          ${legalNote}
-        </div>
-      </body>
-    </html>`;
-  }
+  //         ${legalNote}
+  //       </div>
+  //     </body>
+  //   </html>`;
+  // }
 
   const printAlbaran = (a) => {
     const c = customerById(a.customerId);
@@ -323,10 +332,19 @@ export default function App() {
     const c = customers.find(x => x.id === f.customerId);
     const to = prompt("Enviar factura a (email):", c?.email || "") || "";
     if (!to) return;
-    const html = renderDocHTML(f, "factura");
+    // const html = renderDocHTML(f, "factura");
     const filename = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}.pdf`;
     try {
-      await sendEmailWithPDF({ to, subject: `Factura ${f.series}-${f.number}`, message: `Adjuntamos la factura ${f.series}-${f.number}.`, html, filename });
+      // await sendEmailWithPDF({ to, subject: `Factura ${f.series}-${f.number}`, message: `Adjuntamos la factura ${f.series}-${f.number}.`, html, filename });
+      await sendEmailServerPDF({
+        kind: "factura",
+        data: f,
+        customer: c,
+        to,
+        subject: `Factura ${f.series}-${f.number}`,
+        message: `Adjuntamos la factura ${f.series}-${f.number}.`,
+        filename,
+      });
       alert("✅ Email enviado");
     } catch (e) {
       console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
@@ -337,10 +355,19 @@ export default function App() {
     const c = customers.find(x => x.id === a.customerId);
     const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
     if (!to) return;
-    const html = renderDocHTML(a, "albaran");
+    // const html = renderDocHTML(a, "albaran");
     const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
     try {
-      await sendEmailWithPDF({ to, subject: `Albarán ${a.series}-${a.number}`, message: `Adjuntamos el albarán ${a.series}-${a.number}.`, html, filename });
+      // await sendEmailWithPDF({ to, subject: `Albarán ${a.series}-${a.number}`, message: `Adjuntamos el albarán ${a.series}-${a.number}.`, html, filename });
+      await sendEmailServerPDF({
+        kind: "albaran",
+        data: a,
+        customer: c,
+        to,
+        subject: `Albarán ${a.series}-${a.number}`,
+        message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
+        filename,
+      });
       alert("✅ Email enviado");
     } catch (e) {
       console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
@@ -352,10 +379,18 @@ export default function App() {
     const c = customers.find(x => x.id === cid);
     const to = prompt("Enviar Carta de Porte a (email):", c?.email || "") || "";
     if (!to) return;
-    const html = renderCPHTML(cp);
+    // const html = renderCPHTML(cp);
     const filename = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}.pdf`;
     try {
-      await sendEmailWithPDF({ to, subject: `Carta de Porte ${cp.numero || ""}`, message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`, html, filename });
+      // await sendEmailWithPDF({ to, subject: `Carta de Porte ${cp.numero || ""}`, message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`, html, filename });
+      await sendEmailServerPDF({
+        kind: "cp",
+        data: cp,
+        to,
+        subject: `Carta de Porte ${cp.numero || ""}`,
+        message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`,
+        filename,
+      });
       alert("✅ Email enviado");
     } catch (e) {
       console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
