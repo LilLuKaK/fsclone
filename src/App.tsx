@@ -166,7 +166,7 @@ export default function App() {
         width: 595pt;            /* A4 en puntos */
         min-height: 842pt;
         margin: 0 auto;
-        padding: 40pt;           /* margen interior */
+        padding: 14mm;           /* margen interior */
         background: #fff;
       }
       h1{ font-size:16pt; margin:0 0 8pt }

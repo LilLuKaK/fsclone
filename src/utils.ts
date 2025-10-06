@@ -221,8 +221,12 @@ export async function htmlToPDFBlob(html: string): Promise<Blob> {
   // Asegurar mismo contexto que impresión
   const extra = doc.createElement("style");
   extra.textContent = `
-    @page{ size: Letter; margin: 14mm; }
+    /* Igual que en renderDocHTML: A4 y sin margen externo.
+      El “margen” real lo da el padding de .page (14mm). */
+    @page{ size: A4; margin: 0; }
     html,body{ margin:0; padding:0 }
+    /* Para que la captura no herede centrados ni sombras */
+    .page{ margin:0 !important; box-shadow:none !important; }
     body{-webkit-print-color-adjust:exact; print-color-adjust:exact}
   `;
   doc.head.appendChild(extra);
@@ -289,6 +293,16 @@ async function htmlToPdfBase64(html: string): Promise<string> {
   const doc = iframe.contentDocument!;
   doc.open(); doc.write(html); doc.close();
 
+  // Igualar el contexto de impresión para que el PDF adjunto no “baila”.
+  const extra = doc.createElement("style");
+  extra.textContent = `
+    @page{ size: A4; margin: 0; }
+    html,body{ margin:0; padding:0 }
+    .page{ margin:0 !important; box-shadow:none !important; }
+    body{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  `;
+  doc.head.appendChild(extra);
+
   // Esperar fuentes/imágenes (muy importante para que sea igual al impreso)
   try { if (doc.fonts?.ready) await doc.fonts.ready; } catch {}
   const imgs = Array.from(doc.images) as HTMLImageElement[];
@@ -299,9 +313,9 @@ async function htmlToPdfBase64(html: string): Promise<string> {
 
   const worker = html2pdf()
     .set({
-      margin: 0,
+      margin: 0, // el “margen” lo controla el padding de .page (14mm) en tu HTML
       image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: 794, width: 794 },
+      html2canvas: { scale: 2, useCORS: true, windowWidth: 794, width: 794, scrollX: 0, scrollY: 0 },
       jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     })
