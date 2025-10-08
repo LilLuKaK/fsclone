@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 1) Renderizamos HTML según el tipo
-    let html: string;
+    let html: string | null = null;
     if (kind === "albaran" || kind === "factura") html = renderDocHTML(data, kind, customer, seller);
     else if (kind === "cp") html = renderCPHTML(data, seller);
 
@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const page = await browser.newPage();
+    if (!html) return res.status(400).json({ error: "HTML no generado" });
     await page.setContent(html, { waitUntil: "networkidle0" });
     await page.emulateMediaType("screen");
 
