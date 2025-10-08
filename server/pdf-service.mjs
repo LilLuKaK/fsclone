@@ -22,14 +22,14 @@ app.post("/api/send-pdf", async (req, res) => {
       return res.status(403).json({ error: "forbidden" });
     }
 
-    const { kind, data, to, subject, message, filename, customer } = req.body || {};
+    const { kind, data, to, subject, message, filename, customer, seller } = req.body || {};
     if (!kind || !data || !to || !subject || !filename) {
       return res.status(400).json({ error: "missing fields: kind,data,to,subject,filename" });
     }
 
     let html;
-    if (kind === "albaran" || kind === "factura") html = renderDocHTML(data, kind, customer);
-    else if (kind === "cp") html = renderCPHTML(data);
+    if (kind === "albaran" || kind === "factura") html = renderDocHTML(data, kind, customer, seller);
+    else if (kind === "cp") html = renderCPHTML(data, seller);
     else return res.status(400).json({ error: "invalid kind" });
 
     // En systemd/raíz, usa no-sandbox para evitar errores

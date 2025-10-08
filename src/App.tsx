@@ -307,21 +307,20 @@ export default function App() {
   const printAlbaran = (a) => {
     const c = customerById(a.customerId);
     const title = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}`;
-    openPrintWindow(renderDocHTML(a, "albaran"), { title });
+    openPrintWindow(renderDocHTML(a, "albaran", c, seller), { title });
   };
 
   const printFactura = (f) => {
     const c = customerById(f.customerId);
     const title = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}`;
-    openPrintWindow(renderDocHTML(f, "factura"), { title });
+    openPrintWindow(renderDocHTML(f, "factura", c, seller), { title });
   };
 
   const printCP = (cp) => {
-    // intenta cliente o consignatario
     const cid = cp.customerId || cp.consignatarioId;
     const c = customers.find(x => x.id === cid);
     const title = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}`;
-    openPrintWindow(renderCPHTML(cp), { title });
+    openPrintWindow(renderCPHTML(cp, seller), { title });
   };
   // ===== Enviar por email (PDF adjunto) =====
   async function emailFactura(f) {
@@ -336,6 +335,7 @@ export default function App() {
         kind: "factura",
         data: f,
         customer: c,
+        seller, // <- nuevo
         to,
         subject: `Factura ${f.series}-${f.number}`,
         message: `Adjuntamos la factura ${f.series}-${f.number}.`,
@@ -356,22 +356,23 @@ export default function App() {
     const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
     try {
       // await sendEmailWithPDF({ to, subject: `Albarán ${a.series}-${a.number}`, message: `Adjuntamos el albarán ${a.series}-${a.number}.`, html, filename });
-      // await sendEmailServerPDF({
-      //   kind: "albaran",
-      //   data: a,
-      //   customer: c,
-      //   to,
-      //   subject: `Albarán ${a.series}-${a.number}`,
-      //   message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
-      //   filename,
-      // });
-      await sendEmailServerPDFHtml({
-        html,
+      await sendEmailServerPDF({
+        kind: "albaran",
+        data: a,
+        customer: c,
+        seller, // <- importante para cabecera correcta
         to,
         subject: `Albarán ${a.series}-${a.number}`,
         message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
         filename,
       });
+      // await sendEmailServerPDFHtml({
+      //   html,
+      //   to,
+      //   subject: `Albarán ${a.series}-${a.number}`,
+      //   message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
+      //   filename,
+      // });
       alert("✅ Email enviado");
     } catch (e) {
       console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
@@ -390,6 +391,7 @@ export default function App() {
       await sendEmailServerPDF({
         kind: "cp",
         data: cp,
+        seller, // opcional, pero útil si no rellenas remitente
         to,
         subject: `Carta de Porte ${cp.numero || ""}`,
         message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`,

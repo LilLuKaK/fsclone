@@ -360,11 +360,12 @@ export async function sendEmailWithPDF({
 // @ts-nocheck
 /** Envía email generando el PDF en el backend (recomendado) */
 export async function sendEmailServerPDF({
-  kind, data, customer, to, subject, message, filename,
+  kind, data, customer, seller, to, subject, message, filename,
 }: {
   kind: "albaran" | "factura" | "cp";
   data: any;
-  customer?: any;             // pásalo para totales (RE/IRPF) en albarán/factura
+  customer?: any;
+  seller?: any;
   to: string; subject: string;
   message?: string;
   filename: string;
@@ -372,30 +373,20 @@ export async function sendEmailServerPDF({
   const resp = await fetch("/api/send-pdf", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, data, customer, to, subject, message, filename }),
-  });
-  if (!resp.ok) throw new Error(await resp.text().catch(()=> "Fallo enviando email"));
-  return resp.json();
-}
-
-export async function sendEmailServerPDFHtml({
-  html,
-  to,
-  subject,
-  message,
-  filename,
-}: {
-  html: string;
-  to: string;
-  subject: string;
-  message?: string;
-  filename: string;
-}) {
-  const resp = await fetch("/api/send-pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ html, to, subject, message, filename }),
+    body: JSON.stringify({ kind, data, customer, seller, to, subject, message, filename }),
   });
   if (!resp.ok) throw new Error(await resp.text().catch(() => "Fallo enviando email"));
   return resp.json();
+}
+
+export async function sendEmailServerPDFHtml(params: {
+  html: string; to: string; subject: string; message?: string; filename: string;
+}) {
+  const r = await fetch("/api/send-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!r.ok) throw new Error(await r.text().catch(()=> "Fallo enviando email"));
+  return r.json();
 }

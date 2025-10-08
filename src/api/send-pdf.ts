@@ -11,20 +11,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { kind, data, to, subject, message, filename, customer } = req.body || {};
+    const { kind, data, to, subject, message, filename, customer, seller } = req.body || {};
     if (!kind || !data || !to || !subject || !filename) {
       return res.status(400).json({ error: "Faltan campos: kind, data, to, subject, filename" });
     }
 
     // 1) Renderizamos HTML según el tipo
     let html: string;
-    if (kind === "albaran" || kind === "factura") {
-      html = renderDocHTML(data, kind, customer);
-    } else if (kind === "cp") {
-      html = renderCPHTML(data);
-    } else {
-      return res.status(400).json({ error: "kind inválido" });
-    }
+    if (kind === "albaran" || kind === "factura") html = renderDocHTML(data, kind, customer, seller);
+    else if (kind === "cp") html = renderCPHTML(data, seller);
 
     // 2) Lanzamos Chrome headless (Vercel vs local)
     const isVercel = !!process.env.VERCEL;
