@@ -2,8 +2,8 @@
 import CartaPortePage from "./pages/CartaPorte";
 import { renderDocHTML, renderCPHTML } from "./pdf/templates";
 import { TZ, fmtDate, fmtMoney, initialSequences, dedupeById, computeTotals,
-  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS,sendEmailServerPDFHtml,
-  sendEmailServerPDF, updateSeller } from "./utils";
+  nextNumber, openPrintWindow, Seller, VAT_RATES, SERIES, PRODUCTS, sendEmailServerPDFHtml,
+  updateSeller } from "./utils";
 import React, { useEffect, useState } from "react";
 import { GoogleDriveProviderFactory, LocalProvider } from "./providers/storage";
 // import {
@@ -327,15 +327,14 @@ export default function App() {
     const c = customers.find(x => x.id === f.customerId);
     const to = prompt("Enviar factura a (email):", c?.email || "") || "";
     if (!to) return;
-    // const html = renderDocHTML(f, "factura");
+
+    // MISMO HTML que usas para Imprimir (con cliente y empresa)
+    const html = renderDocHTML(f, "factura", c, seller);
+
     const filename = `FAC_${slug(c?.name || "sin-cliente")}_${docIdTag(f.series, f.number)}_${dateTag(f.date)}.pdf`;
     try {
-      // await sendEmailWithPDF({ to, subject: `Factura ${f.series}-${f.number}`, message: `Adjuntamos la factura ${f.series}-${f.number}.`, html, filename });
-      await sendEmailServerPDF({
-        kind: "factura",
-        data: f,
-        customer: c,
-        seller, // <- nuevo
+      await sendEmailServerPDFHtml({
+        html,
         to,
         subject: `Factura ${f.series}-${f.number}`,
         message: `Adjuntamos la factura ${f.series}-${f.number}.`,
@@ -343,7 +342,8 @@ export default function App() {
       });
       alert("✅ Email enviado");
     } catch (e) {
-      console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
+      console.error(e);
+      alert("❌ No se pudo enviar el email: " + (e?.message || e));
     }
   }
 
@@ -351,31 +351,23 @@ export default function App() {
     const c = customers.find(x => x.id === a.customerId);
     const to = prompt("Enviar albarán a (email):", c?.email || "") || "";
     if (!to) return;
-    // const html = renderDocHTML(a, "albaran");
-    const html = renderDocHTML(a, "albaran", c);
+
+    // MISMO HTML que Imprimir
+    const html = renderDocHTML(a, "albaran", c, seller);
+
     const filename = `ALB_${slug(c?.name || "sin-cliente")}_${docIdTag(a.series, a.number)}_${dateTag(a.date)}.pdf`;
     try {
-      // await sendEmailWithPDF({ to, subject: `Albarán ${a.series}-${a.number}`, message: `Adjuntamos el albarán ${a.series}-${a.number}.`, html, filename });
-      await sendEmailServerPDF({
-        kind: "albaran",
-        data: a,
-        customer: c,
-        seller, // <- importante para cabecera correcta
+      await sendEmailServerPDFHtml({
+        html,
         to,
         subject: `Albarán ${a.series}-${a.number}`,
         message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
         filename,
       });
-      // await sendEmailServerPDFHtml({
-      //   html,
-      //   to,
-      //   subject: `Albarán ${a.series}-${a.number}`,
-      //   message: `Adjuntamos el albarán ${a.series}-${a.number}.`,
-      //   filename,
-      // });
       alert("✅ Email enviado");
     } catch (e) {
-      console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
+      console.error(e);
+      alert("❌ No se pudo enviar el email: " + (e?.message || e));
     }
   }
 
@@ -384,14 +376,14 @@ export default function App() {
     const c = customers.find(x => x.id === cid);
     const to = prompt("Enviar Carta de Porte a (email):", c?.email || "") || "";
     if (!to) return;
-    // const html = renderCPHTML(cp);
+
+    // MISMO HTML que Imprimir (tu renderer completo de CP)
+    const html = renderCPHTML(cp, seller);
+
     const filename = `CP_${slug(c?.name || "sin-cliente")}_${cp.numero ?? "SN"}_${dateTag(cp.fecha || cp.date)}.pdf`;
     try {
-      // await sendEmailWithPDF({ to, subject: `Carta de Porte ${cp.numero || ""}`, message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`, html, filename });
-      await sendEmailServerPDF({
-        kind: "cp",
-        data: cp,
-        seller, // opcional, pero útil si no rellenas remitente
+      await sendEmailServerPDFHtml({
+        html,
         to,
         subject: `Carta de Porte ${cp.numero || ""}`,
         message: `Adjuntamos la Carta de Porte ${cp.numero || ""}.`,
@@ -399,7 +391,8 @@ export default function App() {
       });
       alert("✅ Email enviado");
     } catch (e) {
-      console.error(e); alert("❌ No se pudo enviar el email: " + (e?.message || e));
+      console.error(e);
+      alert("❌ No se pudo enviar el email: " + (e?.message || e));
     }
   }
 

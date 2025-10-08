@@ -379,14 +379,20 @@ export async function sendEmailServerPDF({
   return resp.json();
 }
 
-export async function sendEmailServerPDFHtml(params: {
-  html: string; to: string; subject: string; message?: string; filename: string;
+export async function sendEmailServerPDFHtml({
+  html, to, subject, message, filename,
+}: {
+  html: string;
+  to: string;
+  subject: string;
+  message?: string;
+  filename: string;
 }) {
   const r = await fetch("/api/send-pdf", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify({ html, to, subject, message, filename }),
   });
-  if (!r.ok) throw new Error(await r.text().catch(()=> "Fallo enviando email"));
+  if (!r.ok) throw new Error(await r.text().catch(() => "Fallo enviando email"));
   return r.json();
 }
